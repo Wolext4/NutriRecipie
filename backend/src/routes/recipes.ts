@@ -5,10 +5,18 @@ import { Recipe } from "../models/Recipe";
 
 const router = Router();
 
+const imageUrlInput = z.string().trim().max(820_000).refine(
+  (imageUrl) =>
+    imageUrl === "" ||
+    (imageUrl.length <= 2000 && /^https?:\/\/\S+$/i.test(imageUrl)) ||
+    /^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(imageUrl),
+  "Use an HTTP(S) image URL or a resized JPEG image."
+);
+
 const recipeInput = z.object({
   name: z.string().trim().min(1).max(100),
   description: z.string().trim().min(1).max(500),
-  imageUrl: z.string().trim().max(2000).optional().default(""),
+  imageUrl: imageUrlInput.optional().default(""),
   category: z.string().trim().min(1).max(40),
   prepTime: z.coerce.number().int().min(0).max(1440),
   cookTime: z.coerce.number().int().min(0).max(1440),

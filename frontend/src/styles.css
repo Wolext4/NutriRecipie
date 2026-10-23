@@ -246,6 +246,18 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .form-heading { padding-bottom: 13px; border-bottom: 1px solid #edf0ed; margin-bottom: 14px; }
 .recipe-form { display: grid; gap: 12px; padding-bottom: 6px; }
 .field { display: grid; gap: 5px; color: #6f7b88; font-size: 9px; font-weight: 600; }
+.image-picker { display: grid; gap: 8px; }
+.image-picker-preview, .image-picker-empty { width: 100%; height: 150px; border: 1px solid #e5e8e6; border-radius: 7px; background: #f0fff4; }
+.image-picker-preview { display: block; object-fit: cover; }
+.image-picker-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; color: #8b978d; font-size: 10px; font-weight: 500; }
+.image-picker-empty svg { color: #28a745; }
+.image-picker-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.image-picker-button { min-height: 34px; display: inline-flex; justify-content: center; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid #d6eadb; border-radius: 5px; background: #fff; color: #218838; font-size: 9px; font-weight: 600; }
+.image-picker-button:hover { background: #f0fff4; }
+.image-picker-button:disabled { opacity: .6; cursor: wait; }
+.image-picker-remove { min-height: 34px; padding: 0 8px; border: 0; background: transparent; color: #a34430; font-size: 9px; }
+.image-picker-hint { color: #89929d; font-size: 8px; font-weight: 400; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .field input, .field textarea, .field select, .list-input input { width: 100%; min-width: 0; border: 1px solid #e5e8e6; border-radius: 5px; padding: 9px 9px; outline: none; background: #fff; color: #4c5b6b; font-size: 9px; }
 .field input:focus, .field textarea:focus, .field select:focus, .list-input input:focus { border-color: #28a745; box-shadow: 0 0 0 2px #f0fff4; }
 .field textarea { min-height: 54px; resize: vertical; }

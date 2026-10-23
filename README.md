@@ -35,7 +35,7 @@ npm run dev
 
 Open `http://localhost:5173`. The frontend is JavaScript/JSX (not TypeScript) and uses `http://localhost:5000/api` by default. The responsive interface fills mobile screens and adapts to tablet and desktop widths with wider recipe grids and desktop navigation. To use another API URL, set `VITE_API_URL` in a frontend `.env` file, for example:
 
-The starter recipes added to the local database have original recipe text. Their food photos are served by Unsplash and cropped to fill the app's recipe cards; see the [Unsplash License](https://unsplash.com/license).
+Recipe photos can be selected from the device or captured with a camera where the browser supports it. The frontend resizes selected images to JPEG before sending them to the API, which stores the image data with the recipe in MongoDB; existing image URLs are also supported. Starter recipe photos are served by Unsplash and cropped to fill the app's recipe cards; see the [Unsplash License](https://unsplash.com/license).
 
 ```dotenv
 VITE_API_URL=http://localhost:5000/api

@@ -1,0 +1,267 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft, BookOpen, Check, ChefHat, ChevronDown, ChevronRight, Clock3,
+  Coffee, Filter, Heart, Home, ListPlus, Plus, Search, ShoppingBag,
+  ShoppingBasket, SlidersHorizontal, Sparkles, Trash2, UserRound, Utensils,
+  X
+} from "lucide-react";
+import RecipeForm from "./RecipeForm";
+import { recipesApi } from "./api";
+
+const FALLBACK_CATEGORIES = ["Breakfast", "Dinner", "Lunch", "Dessert", "Snack", "Drinks"];
+const categoryPhotos = {
+  Breakfast: "photo-1533089860892-a7c6f0a88666",
+  Dinner: "photo-1547592180-85f173990554",
+  Lunch: "photo-1512621776951-a57141f2eefd",
+  Dessert: "photo-1488477181946-6428a0291777",
+  Snack: "photo-1540420773420-3366772f4999",
+  Drinks: "photo-1513558161293-cdaf765edfd7"
+};
+const fallbackPhoto = "photo-1547592180-85f173990554";
+const photoUrl = (id) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=850&q=85`;
+const categoryIcons = { Breakfast: Coffee, Dinner: Utensils, Lunch: Utensils, Dessert: Sparkles, Snack: Heart, Drinks: Coffee };
+
+function Welcome({ onContinue }) {
+  const [name, setName] = useState("");
+  return (
+    <main className="welcome-screen">
+      <header className="welcome-header"><a className="app-logo" href="#" onClick={(event) => event.preventDefault()}><span className="logo-mark"><ChefHat size={19} /></span>NutriRecipie</a><button className="skip-button" onClick={onContinue}>Skip</button></header>
+      <div className="welcome-illustration"><div className="welcome-plate"><span>g</span><Sparkles className="plate-sparkle" size={20} /></div><span className="food-doodle doodle-one">✳</span><span className="food-doodle doodle-two">✿</span><span className="food-doodle doodle-three">· · ·</span></div>
+      <section className="welcome-copy"><span className="eyebrow">A LITTLE MORE JOY IN YOUR KITCHEN</span><h1>Good food starts<br />with <em>your favorites.</em></h1><p>Keep the recipes you love close, and find something lovely to make today.</p></section>
+      <div className="welcome-actions"><label className="welcome-name"><UserRound size={17} /><input value={name} onChange={(event) => setName(event.target.value)} placeholder="What should we call you? (optional)" /></label><button className="welcome-continue" onClick={() => onContinue(name.trim())}>Continue <ChevronRight size={17} /></button><div className="welcome-or"><span />OR<span /></div><button className="guest-button" onClick={() => onContinue()}>Continue as a guest</button><p className="welcome-terms">Your personal recipe book, right on this device.</p></div>
+      <div className="home-indicator" />
+    </main>
+  );
+}
+
+function RecipeCard({ recipe, onClick, compact = false }) {
+  return (
+    <button className={`recipe-card ${compact ? "recipe-card-compact" : ""}`} onClick={onClick}>
+      <div className="recipe-photo" style={{ backgroundImage: `url("${recipe.imageUrl || photoUrl(categoryPhotos[recipe.category] || fallbackPhoto)}")` }}>
+        <span className="category-pill">{recipe.category}</span>
+        <span className="photo-time"><Clock3 size={12} /> {recipe.prepTime + recipe.cookTime}m</span>
+      </div>
+      <div className="recipe-card-copy"><h3>{recipe.name}</h3><p>{recipe.description}</p><span className="recipe-card-servings"><Utensils size={13} /> Serves {recipe.servings}</span></div>
+    </button>
+  );
+}
+
+function RecipeDetails({ recipe, onClose, onEdit, onDelete, onAddShopping }) {
+  return (
+    <div className="sheet-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="recipe-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+        <div className="detail-cover" style={{ backgroundImage: `url("${recipe.imageUrl || photoUrl(categoryPhotos[recipe.category] || fallbackPhoto)}")` }}>
+          <button className="round-icon detail-back" onClick={onClose} aria-label="Close recipe"><ArrowLeft size={19} /></button>
+          <button className="round-icon detail-fav" aria-label="Save recipe"><Heart size={19} /></button>
+          <span className="category-pill">{recipe.category}</span>
+        </div>
+        <div className="detail-sheet-content">
+          <div className="detail-title-line"><div><span className="eyebrow">A RECIPE TO KEEP</span><h2 id="detail-title">{recipe.name}</h2></div><button className="icon-soft" aria-label="Close" onClick={onClose}><X size={18} /></button></div>
+          <p className="detail-description">{recipe.description}</p>
+          <div className="detail-facts"><span><Clock3 size={16} /><b>{recipe.prepTime + recipe.cookTime} min</b><small>Total time</small></span><span><Utensils size={16} /><b>{recipe.servings} servings</b><small>Good for sharing</small></span></div>
+          <div className="detail-section-title"><h3>Ingredients <span>{recipe.ingredients.length}</span></h3><button className="text-action" onClick={() => onAddShopping(recipe)}><ListPlus size={15} /> Add to list</button></div>
+          <ul className="ingredient-list">{recipe.ingredients.map((item, index) => <li key={`${item}-${index}`}><span className="ingredient-bullet" />{item}</li>)}</ul>
+          <h3 className="method-title">Let's make it</h3>
+          <ol className="method-list">{recipe.instructions.map((step, index) => <li key={`${step}-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><p>{step}</p></li>)}</ol>
+          <div className="detail-actions"><button className="button button-quiet" onClick={onEdit}>Edit recipe</button><button className="delete-recipe" onClick={onDelete}><Trash2 size={15} /> Remove</button></div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function FilterSheet({ categories, category, setCategory, maxTime, setMaxTime, sort, setSort, onClose, onApply }) {
+  return (
+    <div className="sheet-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="filter-sheet" role="dialog" aria-modal="true" aria-labelledby="filter-title">
+        <div className="sheet-handle" /><div className="filter-heading"><div><span className="eyebrow">MAKE IT JUST RIGHT</span><h2 id="filter-title">Filters</h2></div><button className="icon-soft" onClick={onClose} aria-label="Close filters"><X size={18} /></button></div>
+        <h3>Category</h3><div className="filter-options filter-categories"><button className={category === "All recipes" ? "option-selected" : ""} onClick={() => setCategory("All recipes")}>All</button>{categories.map((item) => <button key={item} className={category === item ? "option-selected" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div>
+        <h3>Ready in</h3><div className="filter-options">{[["Any time", 0], ["Under 30 min", 30], ["Under 60 min", 60]].map(([label, value]) => <button key={label} className={maxTime === value ? "option-selected" : ""} onClick={() => setMaxTime(value)}>{label}</button>)}</div>
+        <h3>Sort by</h3><div className="filter-options"><button className={sort === "recent" ? "option-selected" : ""} onClick={() => setSort("recent")}>Recently added</button><button className={sort === "name" ? "option-selected" : ""} onClick={() => setSort("name")}>Name A–Z</button></div>
+        <button className="apply-filters" onClick={onApply}>Show recipes <ChevronRight size={17} /></button>
+      </section>
+    </div>
+  );
+}
+
+function BottomNav({ active, onChange }) {
+  const items = [
+    ["recipes", "Recipes", Home],
+    ["nutri", "Nutri", Sparkles],
+    ["menu", "Menu", BookOpen],
+    ["purchase", "Purchase", ShoppingBag],
+    ["profile", "Profile", UserRound]
+  ];
+  return <nav className="bottom-nav" aria-label="Main navigation">{items.map(([key, label, Icon]) => <button key={key} className={active === key ? "nav-selected" : ""} onClick={() => onChange(key)}><Icon size={19} strokeWidth={active === key ? 2.4 : 1.8} /><span>{label}</span></button>)}</nav>;
+}
+
+export default function App() {
+  const [welcome, setWelcome] = useState(() => localStorage.getItem("gather-welcome-complete") !== "yes");
+  const [userName, setUserName] = useState(() => localStorage.getItem("gather-user-name") || "");
+  const [screen, setScreen] = useState("recipes");
+  const [recipes, setRecipes] = useState([]);
+  const [allRecipes, setAllRecipes] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All recipes");
+  const [maxTime, setMaxTime] = useState(0);
+  const [sort, setSort] = useState("recent");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [shoppingList, setShoppingList] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("gather-shopping-list") || "[]"); }
+    catch { return []; }
+  });
+
+  const loadRecipes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [result, categoryList, all] = await Promise.all([
+        recipesApi.list(search, activeCategory, sort),
+        recipesApi.categories(),
+        recipesApi.list("", "All recipes", "recent")
+      ]);
+      setRecipes(result);
+      setAllRecipes(all);
+      setCategories(categoryList);
+      setError("");
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Couldn't load recipes.");
+    } finally {
+      setLoading(false);
+    }
+  }, [search, activeCategory, sort]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearch(searchInput.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadRecipes(), 150);
+    return () => window.clearTimeout(timer);
+  }, [loadRecipes]);
+
+  useEffect(() => {
+    localStorage.setItem("gather-shopping-list", JSON.stringify(shoppingList));
+  }, [shoppingList]);
+
+  const categoryNames = useMemo(
+    () => [...new Set([...FALLBACK_CATEGORIES, ...categories])],
+    [categories]
+  );
+  const visibleRecipes = useMemo(
+    () => maxTime ? recipes.filter((recipe) => recipe.prepTime + recipe.cookTime <= maxTime) : recipes,
+    [recipes, maxTime]
+  );
+  const categoryList = showAllCategories ? categoryNames : categoryNames.slice(0, 4);
+
+  function continueAsGuest(name = "") {
+    const cleanName = typeof name === "string" ? name : "";
+    if (cleanName) {
+      localStorage.setItem("gather-user-name", cleanName);
+      setUserName(cleanName);
+    }
+    localStorage.setItem("gather-welcome-complete", "yes");
+    setWelcome(false);
+  }
+
+  async function saveRecipe(input) {
+    if (editing) await recipesApi.update(editing._id, input);
+    else await recipesApi.create(input);
+    setShowForm(false);
+    setEditing(null);
+    await loadRecipes();
+  }
+
+  async function deleteRecipe(recipe) {
+    if (!window.confirm(`Remove "${recipe.name}" from your recipe book?`)) return;
+    try {
+      await recipesApi.remove(recipe._id);
+      setSelected(null);
+      await loadRecipes();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Couldn't remove this recipe.");
+    }
+  }
+
+  function addToShopping(recipe) {
+    setShoppingList((current) => {
+      const existing = new Set(current.map((item) => item.name.toLowerCase()));
+      const newItems = recipe.ingredients
+        .filter((name) => !existing.has(name.toLowerCase()))
+        .map((name) => ({ id: `${Date.now()}-${Math.random()}`, name, checked: false, recipe: recipe.name }));
+      return [...current, ...newItems];
+    });
+    setSelected(null);
+    setScreen("purchase");
+  }
+
+  function toggleShoppingItem(id) {
+    setShoppingList((current) => current.map((item) => item.id === id ? { ...item, checked: !item.checked } : item));
+  }
+
+  function renderRecipeResults(items) {
+    if (loading) return <div className="inline-loading"><span className="loader" />Finding something delicious…</div>;
+    if (!items.length) {
+      return <div className="no-results"><span className="no-results-icon"><Search size={20} /></span><h3>No recipes found just yet</h3><p>Try another search, choose a different category, or loosen your filters.</p><button className="text-action" onClick={() => { setSearchInput(""); setSearch(""); setActiveCategory("All recipes"); setMaxTime(0); }}>Clear search & filters</button></div>;
+    }
+    return <div className="vertical-recipes">{items.map((recipe) => <RecipeCard key={recipe._id} recipe={recipe} onClick={() => setSelected(recipe)} />)}</div>;
+  }
+
+  function renderHome() {
+    const featured = (search || activeCategory !== "All recipes" || maxTime) ? visibleRecipes : allRecipes;
+    return <>
+      <header className="home-header"><div><span className="home-greeting">GOOD FOOD, GOOD MOOD <span>✳</span></span><h1>What do you want<br />to <em>cook{userName ? `, ${userName}` : ""}?</em></h1></div><button className="profile-bubble" aria-label="Your profile" onClick={() => setScreen("profile")}>{userName ? userName[0].toUpperCase() : <UserRound size={19} />}</button></header>
+      <form className="search-bar" onSubmit={(event) => { event.preventDefault(); setSearch(searchInput.trim()); }}><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search for a recipe" aria-label="Search recipes" /><button className="filter-trigger" type="button" aria-label="Open filters" onClick={() => setShowFilters(true)}><SlidersHorizontal size={17} /></button></form>
+      {(search || activeCategory !== "All recipes") && <div className="search-context"><span>{activeCategory === "All recipes" ? "Search results" : activeCategory}{search ? ` for “${search}”` : ""}</span><button onClick={() => { setSearchInput(""); setSearch(""); setActiveCategory("All recipes"); setMaxTime(0); }}>Clear <X size={13} /></button></div>}
+      {!(search || activeCategory !== "All recipes") && <section className="assistant-banner"><div className="assistant-banner-top"><span className="assistant-spark"><Sparkles size={16} /></span><span className="assistant-label">A LITTLE KITCHEN INSPIRATION</span><span className="assistant-new">IDEAS</span></div><h2>Not sure what to make?</h2><p>Search your saved recipes by name or ingredient.</p><button className="assistant-input" onClick={() => setScreen("nutri")}><span>Tell us what’s in your fridge…</span><ChevronRight size={17} /></button></section>}
+      <section className="content-section"><div className="section-heading"><div><span className="eyebrow">FIND YOUR NEXT FAVORITE</span><h2>Categories</h2></div><button className="show-all" onClick={() => setShowAllCategories(!showAllCategories)}>{showAllCategories ? "Show less" : "Show all"} <ChevronRight size={15} /></button></div><div className="category-scroller">{categoryList.map((category) => { const Icon = categoryIcons[category] || Utensils; const count = allRecipes.filter((recipe) => recipe.category === category).length; return <button key={category} className={`category-card ${activeCategory === category ? "category-card-active" : ""}`} onClick={() => { setActiveCategory(activeCategory === category ? "All recipes" : category); setScreen("recipes"); }}><img src={photoUrl(categoryPhotos[category] || fallbackPhoto)} alt="" /><span className="category-image-shade" /><span className="category-icon"><Icon size={16} /></span><span className="category-name">{category}</span><span className="category-count">{count} {count === 1 ? "recipe" : "recipes"}</span></button>; })}</div></section>
+      <section className="content-section new-section"><div className="section-heading"><div><span className="eyebrow">{search || activeCategory !== "All recipes" ? "YOUR SEARCH" : "FRESH FROM YOUR KITCHEN"}</span><h2>{search || activeCategory !== "All recipes" ? "Recipes" : "Recipes for you"}</h2></div><button className="show-all" onClick={() => setScreen("menu")}>Show all <ChevronRight size={15} /></button></div>{loading ? renderRecipeResults(featured) : renderRecipeResults(featured)}</section>
+    </>;
+  }
+
+  function renderNutri() {
+    const suggestions = ["chicken", "tomato", "pasta", "vegetarian"];
+    return <><header className="subpage-header"><span className="eyebrow">A LITTLE INSPIRATION</span><h1>Let's find<br /><em>something good.</em></h1><p>What ingredients do you have on hand?</p></header><form className="search-bar nutri-search" onSubmit={(event) => { event.preventDefault(); setSearch(searchInput.trim()); setActiveCategory("All recipes"); }}><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="e.g. chicken, tomatoes…" aria-label="Search by ingredient" /><button type="submit" aria-label="Search"><ChevronRight size={18} /></button></form><div className="suggestion-chips">{suggestions.map((item) => <button key={item} onClick={() => { setSearchInput(item); setSearch(item); }}>{item}</button>)}</div><section className="content-section nutri-results"><div className="section-heading"><div><span className="eyebrow">FROM YOUR RECIPE BOOK</span><h2>{search ? `With “${search}”` : "Recipes to inspire"}</h2></div></div>{renderRecipeResults(search ? recipes : allRecipes.slice(0, 6))}</section></>;
+  }
+
+  function renderMenu() {
+    return <><header className="subpage-header menu-header"><span className="eyebrow">YOUR PERSONAL COLLECTION</span><div className="menu-title-row"><h1>My <em>recipes.</em></h1><button className="add-round" aria-label="Add recipe" onClick={() => { setEditing(null); setShowForm(true); }}><Plus size={20} /></button></div><p>Your tried-and-true favorites, all in one place.</p></header><div className="search-bar menu-search"><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search your recipes" /><button className="filter-trigger" onClick={() => setShowFilters(true)} aria-label="Filter recipes"><Filter size={17} /></button></div><div className="menu-summary"><BookOpen size={16} /><span>{allRecipes.length} saved {allRecipes.length === 1 ? "recipe" : "recipes"}</span><button onClick={() => setShowFilters(true)}>Filters <ChevronDown size={14} /></button></div>{renderRecipeResults(visibleRecipes)}</>;
+  }
+
+  function renderPurchase() {
+    const remaining = shoppingList.filter((item) => !item.checked);
+    return <><header className="subpage-header shopping-header"><span className="eyebrow">YOUR LITTLE SHOPPING HELPER</span><h1>Market <em>list.</em></h1><p>Ingredients from recipes you want to make.</p></header><div className="shopping-summary"><span className="shopping-icon"><ShoppingBasket size={20} /></span><div><strong>{remaining.length} things to pick up</strong><small>{shoppingList.length - remaining.length} already in your basket</small></div>{shoppingList.some((item) => item.checked) && <button className="clear-done" onClick={() => setShoppingList((current) => current.filter((item) => !item.checked))}>Clear done</button>}</div>{shoppingList.length ? <div className="shopping-list">{shoppingList.map((item) => <label className={`shopping-item ${item.checked ? "shopping-checked" : ""}`} key={item.id}><input type="checkbox" checked={item.checked} onChange={() => toggleShoppingItem(item.id)} /><span className="custom-check"><Check size={13} /></span><span className="shopping-item-copy"><strong>{item.name}</strong><small>For {item.recipe}</small></span><button type="button" aria-label={`Remove ${item.name}`} onClick={(event) => { event.preventDefault(); setShoppingList((current) => current.filter((entry) => entry.id !== item.id)); }}><X size={16} /></button></label>)}</div> : <div className="no-results shopping-empty"><span className="no-results-icon"><ShoppingBag size={20} /></span><h3>Your list is looking fresh</h3><p>Open a recipe and tap “Add to list” to bring its ingredients here.</p><button className="text-action" onClick={() => setScreen("recipes")}>Browse recipes <ChevronRight size={15} /></button></div>}</>;
+  }
+
+  function renderProfile() {
+    const counts = categoryNames.map((category) => ({ category, count: allRecipes.filter((recipe) => recipe.category === category).length })).filter((item) => item.count > 0);
+    return <><header className="profile-cover"><div className="profile-avatar-large">{userName ? userName[0].toUpperCase() : <UserRound size={26} />}</div><span className="eyebrow">YOUR GATHER PROFILE</span><h1>{userName || "Home cook"}</h1><p>Your kitchen, your favorites.</p></header><div className="profile-stats"><div><strong>{allRecipes.length}</strong><span>Recipes saved</span></div><div><strong>{categories.length}</strong><span>Categories</span></div><div><strong>{shoppingList.length}</strong><span>On your list</span></div></div><section className="profile-section"><div className="section-heading"><div><span className="eyebrow">YOUR COLLECTION</span><h2>Recipe categories</h2></div></div>{counts.length ? counts.map((item) => <button className="profile-category" key={item.category} onClick={() => { setActiveCategory(item.category); setScreen("menu"); }}><span>{item.category}</span><span>{item.count} recipes <ChevronRight size={15} /></span></button>) : <div className="profile-empty">Your categories will show up here once you add recipes.</div>}</section><button className="profile-add" onClick={() => { setEditing(null); setShowForm(true); }}><Plus size={17} /> Add a recipe</button></>;
+  }
+
+  if (welcome) return <Welcome onContinue={continueAsGuest} />;
+
+  return <main className="app-frame">
+    <div className="screen-content" key={screen}>
+      {screen === "recipes" && renderHome()}
+      {screen === "nutri" && renderNutri()}
+      {screen === "menu" && renderMenu()}
+      {screen === "purchase" && renderPurchase()}
+      {screen === "profile" && renderProfile()}
+      {error && <div className="error-banner" role="alert"><span>{error}</span><button onClick={() => void loadRecipes()}>Retry</button></div>}
+    </div>
+    <button className="floating-add" aria-label="Add a recipe" onClick={() => { setEditing(null); setShowForm(true); }}><Plus size={22} /></button>
+    <BottomNav active={screen} onChange={setScreen} />
+    <div className="home-indicator" />
+    {showForm && <RecipeForm recipe={editing || undefined} onClose={() => { setShowForm(false); setEditing(null); }} onSave={saveRecipe} />}
+    {showFilters && <FilterSheet categories={categoryNames} category={activeCategory} setCategory={setActiveCategory} maxTime={maxTime} setMaxTime={setMaxTime} sort={sort} setSort={setSort} onClose={() => setShowFilters(false)} onApply={() => { setShowFilters(false); setScreen("recipes"); }} />}
+    {selected && <RecipeDetails recipe={selected} onClose={() => setSelected(null)} onEdit={() => { setEditing(selected); setSelected(null); setShowForm(true); }} onDelete={() => void deleteRecipe(selected)} onAddShopping={addToShopping} />}
+  </main>;
+}

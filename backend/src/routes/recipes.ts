@@ -1,0 +1,127 @@
+import { Router } from "express";
+import { isValidObjectId } from "mongoose";
+import { z } from "zod";
+import { Recipe } from "../models/Recipe";
+
+const router = Router();
+
+const recipeInput = z.object({
+  name: z.string().trim().min(1).max(100),
+  description: z.string().trim().min(1).max(500),
+  imageUrl: z.string().trim().max(2000).optional().default(""),
+  category: z.string().trim().min(1).max(40),
+  prepTime: z.coerce.number().int().min(0).max(1440),
+  cookTime: z.coerce.number().int().min(0).max(1440),
+  servings: z.coerce.number().int().min(1).max(100),
+  ingredients: z.array(z.string().trim().min(1)).min(1).max(100),
+  instructions: z.array(z.string().trim().min(1)).min(1).max(100)
+});
+
+router.get("/", async (req, res, next) => {
+  try {
+    const query: Record<string, unknown> = {};
+    const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+    const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
+
+    if (search) {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      query.$or = [
+        { name: { $regex: escapedSearch, $options: "i" } },
+        { description: { $regex: escapedSearch, $options: "i" } },
+        { ingredients: { $regex: escapedSearch, $options: "i" } }
+      ];
+    }
+    if (category && category !== "All recipes") query.category = category;
+
+    const sort: { name?: "asc"; createdAt?: "desc" } =
+      req.query.sort === "name" ? { name: "asc" } : { createdAt: "desc" };
+    const recipes = await Recipe.find(query).sort(sort);
+    res.json(recipes);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/categories", async (_req, res, next) => {
+  try {
+    const categories = await Recipe.distinct("category");
+    res.json(categories.sort((a, b) => a.localeCompare(b)));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/:id", async (req, res, next) => {
+  try {
+    if (!isValidObjectId(req.params.id)) {
+      res.status(400).json({ message: "Invalid recipe ID." });
+      return;
+    }
+    const recipe = await Recipe.findById(req.params.id);
+    if (!recipe) {
+      res.status(404).json({ message: "Recipe not found." });
+      return;
+    }
+    res.json(recipe);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/", async (req, res, next) => {
+  try {
+    const parsed = recipeInput.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid recipe." });
+      return;
+    }
+    const recipe = await Recipe.create(parsed.data);
+    res.status(201).json(recipe);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/:id", async (req, res, next) => {
+  try {
+    if (!isValidObjectId(req.params.id)) {
+      res.status(400).json({ message: "Invalid recipe ID." });
+      return;
+    }
+    const parsed = recipeInput.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid recipe." });
+      return;
+    }
+    const recipe = await Recipe.findByIdAndUpdate(req.params.id, parsed.data, {
+      new: true,
+      runValidators: true
+    });
+    if (!recipe) {
+      res.status(404).json({ message: "Recipe not found." });
+      return;
+    }
+    res.json(recipe);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/:id", async (req, res, next) => {
+  try {
+    if (!isValidObjectId(req.params.id)) {
+      res.status(400).json({ message: "Invalid recipe ID." });
+      return;
+    }
+    const recipe = await Recipe.findByIdAndDelete(req.params.id);
+    if (!recipe) {
+      res.status(404).json({ message: "Recipe not found." });
+      return;
+    }
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;

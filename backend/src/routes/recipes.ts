@@ -1,7 +1,6 @@
 import { Router } from "express";
-import { isValidObjectId, Types } from "mongoose";
+import { isValidObjectId } from "mongoose";
 import { z } from "zod";
-import { optionalAuth, requireAuth } from "../middleware/auth";
 import { Recipe } from "../models/Recipe";
 
 const router = Router();
@@ -26,18 +25,15 @@ const recipeInput = z.object({
   instructions: z.array(z.string().trim().min(1)).min(1).max(100)
 });
 
-router.get("/", optionalAuth, async (req, res, next) => {
+router.get("/", async (req, res, next) => {
   try {
-    const visibility: Record<string, unknown>[] = [{ isPublic: true }];
-    if (req.authUserId) visibility.push({ owner: new Types.ObjectId(req.authUserId) });
-    const query: Record<string, unknown> = { $or: visibility };
+    const query: Record<string, unknown> = {};
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
 
     if (search) {
       const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       query.$and = [
-        { $or: visibility },
         { $or: [
         { name: { $regex: escapedSearch, $options: "i" } },
         { description: { $regex: escapedSearch, $options: "i" } },
@@ -57,26 +53,22 @@ router.get("/", optionalAuth, async (req, res, next) => {
   }
 });
 
-router.get("/categories", optionalAuth, async (req, res, next) => {
+router.get("/categories", async (_req, res, next) => {
   try {
-    const visibility: Record<string, unknown>[] = [{ isPublic: true }];
-    if (req.authUserId) visibility.push({ owner: new Types.ObjectId(req.authUserId) });
-    const categories = await Recipe.distinct("category", { $or: visibility });
+    const categories = await Recipe.distinct("category");
     res.json(categories.sort((a, b) => a.localeCompare(b)));
   } catch (error) {
     next(error);
   }
 });
 
-router.get("/:id", optionalAuth, async (req, res, next) => {
+router.get("/:id", async (req, res, next) => {
   try {
     if (!isValidObjectId(req.params.id)) {
       res.status(400).json({ message: "Invalid recipe ID." });
       return;
     }
-    const visibility: Record<string, unknown>[] = [{ isPublic: true }];
-    if (req.authUserId) visibility.push({ owner: new Types.ObjectId(req.authUserId) });
-    const recipe = await Recipe.findOne({ _id: req.params.id, $or: visibility });
+    const recipe = await Recipe.findById(req.params.id);
     if (!recipe) {
       res.status(404).json({ message: "Recipe not found." });
       return;
@@ -87,7 +79,7 @@ router.get("/:id", optionalAuth, async (req, res, next) => {
   }
 });
 
-router.post("/", requireAuth, async (req, res, next) => {
+router.post("/", async (req, res, next) => {
   try {
     const parsed = recipeInput.safeParse(req.body);
     if (!parsed.success) {
@@ -95,9 +87,7 @@ router.post("/", requireAuth, async (req, res, next) => {
       return;
     }
     const recipe = await Recipe.create({
-      ...parsed.data,
-      owner: new Types.ObjectId(req.authUserId),
-      isPublic: false
+      ...parsed.data
     });
     res.status(201).json(recipe);
   } catch (error) {
@@ -105,7 +95,7 @@ router.post("/", requireAuth, async (req, res, next) => {
   }
 });
 
-router.put("/:id", requireAuth, async (req, res, next) => {
+router.put("/:id", async (req, res, next) => {
   try {
     if (!isValidObjectId(req.params.id)) {
       res.status(400).json({ message: "Invalid recipe ID." });
@@ -117,7 +107,7 @@ router.put("/:id", requireAuth, async (req, res, next) => {
       return;
     }
     const recipe = await Recipe.findOneAndUpdate(
-      { _id: req.params.id, owner: new Types.ObjectId(req.authUserId), isPublic: false },
+      { _id: req.params.id },
       parsed.data,
       {
       new: true,
@@ -134,17 +124,13 @@ router.put("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-router.delete("/:id", requireAuth, async (req, res, next) => {
+router.delete("/:id", async (req, res, next) => {
   try {
     if (!isValidObjectId(req.params.id)) {
       res.status(400).json({ message: "Invalid recipe ID." });
       return;
     }
-    const recipe = await Recipe.findOneAndDelete({
-      _id: req.params.id,
-      owner: new Types.ObjectId(req.authUserId),
-      isPublic: false
-    });
+    const recipe = await Recipe.findByIdAndDelete(req.params.id);
     if (!recipe) {
       res.status(404).json({ message: "Recipe not found." });
       return;

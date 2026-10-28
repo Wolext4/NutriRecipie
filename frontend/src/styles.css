@@ -171,32 +171,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .profile-empty { padding: 16px; border-radius: 6px; background: #f7f8f5; color: #858f8d; text-align: center; font-size: 9px; }
 .profile-add { width: 100%; display: flex; justify-content: center; align-items: center; gap: 7px; margin-top: 17px; padding: 11px; border: 1px solid #e6eae4; border-radius: 6px; background: #fff; color: #64795f; font-size: 10px; }
 
-.auth-loading { min-height: 100dvh; display: flex; align-items: center; justify-content: center; gap: 10px; color: #657184; font-size: 13px; }
-.auth-screen { width: min(100%, 500px); min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; gap: 26px; margin: 0 auto; padding: 32px 22px; background: #fff; }
-.auth-logo { align-self: center; }
-.auth-panel { padding: 26px; border: 1px solid #edf0ed; border-radius: 14px; background: #fff; box-shadow: 0 16px 45px #2634490b; }
-.auth-panel>.eyebrow { color: #28a745; }
-.auth-panel h1 { margin: 9px 0 0; color: #4c596d; font: 700 27px/1.2 "Mulish", sans-serif; letter-spacing: -.5px; }
-.auth-intro { margin: 8px 0 20px; color: #8993a1; font-size: 12px; line-height: 1.6; }
-.auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 8px; background: #f3f6f2; }
-.auth-tabs button { min-height: 38px; border: 0; border-radius: 6px; background: transparent; color: #788477; font-size: 11px; font-weight: 600; }
-.auth-tabs .auth-tab-active { background: #fff; color: #218838; box-shadow: 0 1px 5px #26344912; }
-.auth-form { display: grid; gap: 14px; margin-top: 19px; }
-.auth-field { display: grid; gap: 6px; color: #5e6c79; font-size: 10px; font-weight: 700; }
-.auth-input-wrap { min-height: 44px; display: flex; align-items: center; gap: 9px; padding: 0 11px; border: 1px solid #e2e7e3; border-radius: 6px; color: #8b978d; }
-.auth-input-wrap:focus-within { border-color: #28a745; box-shadow: 0 0 0 2px #f0fff4; }
-.auth-input-wrap input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #4c5b6b; font-size: 12px; }
-.auth-input-wrap input::placeholder { color: #9ba4a7; }
-.auth-submit { width: 100%; min-height: 45px; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 3px; border: 0; border-radius: 6px; background: #28a745; color: #fff; font-size: 12px; font-weight: 700; }
-.auth-submit:hover { background: #218838; }
-.auth-submit:disabled { opacity: .65; cursor: wait; }
-.auth-error { margin: 0; color: #a34430; font-size: 10px; line-height: 1.5; }
-.auth-divider { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 17px 0 12px; color: #8993a1; font-size: 9px; }
-.auth-divider span { width: 38px; height: 1px; background: #e9ebec; }
-.auth-guest { width: 100%; min-height: 40px; border: 1px solid #cdebd3; border-radius: 6px; background: #fff; color: #218838; font-size: 10px; font-weight: 600; }
-.auth-guest:hover { background: #f0fff4; }
-.auth-note { margin: 14px 0 0; color: #8993a1; text-align: center; font-size: 9px; line-height: 1.5; }
-
 .welcome-screen { display: flex; flex-direction: column; padding-bottom: 27px; }
 .welcome-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 23px 0; }
 .app-logo { display: flex; align-items: center; gap: 7px; color: #212121; font: 800 18px "Mulish", sans-serif; letter-spacing: -.45px; text-decoration: none; }

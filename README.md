@@ -17,8 +17,8 @@ A responsive recipe manager built with React and JavaScript, a Node.js/Express A
 - Automatically resize selected photos before saving them with a recipe
 - View recipe descriptions, ingredients, directions, servings, and preparation times
 - Create and manage a shopping list from recipe ingredients
-- Register and sign in with an email and password
-- Manage private recipes while browsing public starter recipes as a guest
+- Create, edit, and delete recipes without an account
+- Import recipes from the Recipe API
 - Save the shopping list in the current browser
 
 ## Technology
@@ -44,10 +44,7 @@ frontend/
 backend/
   src/
     index.ts          Express server and MongoDB connection
-    middleware/auth.ts Bearer-token authentication
-    models/User.ts    User account schema
     models/Recipe.ts  Mongoose recipe schema
-    routes/auth.ts    Registration, login, and current-user routes
     routes/recipes.ts Recipe API routes and validation
 ```
 
@@ -73,14 +70,6 @@ Set `MONGODB_URI` in `backend/.env`. For a local MongoDB server, the example val
 ```dotenv
 MONGODB_URI=mongodb://127.0.0.1:27017/recipe_manager
 ```
-
-Also set `JWT_SECRET` to a random secret with at least 32 bytes. You can generate one with Node.js:
-
-```powershell
-node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
-```
-
-Keep the generated value private and store it only in `backend/.env` locally and in the backend host's environment settings in production.
 
 Then start the API:
 
@@ -123,25 +112,13 @@ The backend API is mounted at `/api`.
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | API and database connection status |
-| `POST` | `/api/auth/register` | Register with a name, email, and password (minimum 8 characters) |
-| `POST` | `/api/auth/login` | Sign in and receive a bearer token |
-| `GET` | `/api/auth/me` | Get the signed-in account; requires a bearer token |
 | `GET` | `/api/recipes` | List recipes; supports `search`, `category`, and `sort=name` query parameters |
 | `GET` | `/api/recipes/categories` | List categories used by saved recipes |
 | `GET` | `/api/recipes/:id` | Get one recipe |
-| `POST` | `/api/recipes` | Create a private recipe; requires a bearer token |
-| `PUT` | `/api/recipes/:id` | Update your own recipe; requires a bearer token |
-| `DELETE` | `/api/recipes/:id` | Delete your own recipe; requires a bearer token |
-
-### Authentication and recipe visibility
-
-- Accounts use email and password. Passwords are hashed with Node.js `scrypt`; the API never stores the original password.
-- Successful registration and login return a signed bearer token. The frontend stores that token in browser `localStorage` and sends it in the `Authorization` header.
-- Tokens expire after seven days. Signing out removes the token from that browser.
-- Public starter recipes are readable without an account. Newly created recipes are private to the account that created them.
-- Existing recipe documents without ownership metadata are marked as public starter recipes when the backend starts, preserving the existing recipe collection.
-- An account can edit or delete only recipes it owns. Public starter recipes are read-only.
-- This is a school-project authentication flow, not a full identity-management system: it does not currently include email verification, password reset, or account deletion.
+| `POST` | `/api/recipes` | Create a recipe |
+| `PUT` | `/api/recipes/:id` | Update a recipe |
+| `DELETE` | `/api/recipes/:id` | Delete a recipe |
+| `GET` | `/api/external-recipes/search` | Search the configured Recipe API |
 
 ## Deployment
 
@@ -162,7 +139,6 @@ Set these environment variables in the Render service settings:
 | --- | --- |
 | `MONGODB_URI` | MongoDB Atlas connection string, with `recipe_manager` as the database name |
 | `CLIENT_ORIGIN` | Exact Vercel frontend origin, for example `https://nutri-recipie.vercel.app` |
-| `JWT_SECRET` | A strong random secret used to sign login tokens |
 
 Render provides `PORT` automatically. Do not commit database credentials or add them to this README. In MongoDB Atlas Network Access, allow the Render service's outbound IP ranges. Your personal development IP is separate and is needed only for connections from your own computer.
 
@@ -181,7 +157,7 @@ Set this environment variable in Vercel, then deploy or redeploy:
 | --- | --- |
 | `VITE_API_URL` | `https://nutrirecipie.onrender.com/api` |
 
-Recipe API imports are proxied through the backend. Set `RECIPE_API_KEY` privately in Render (and in `backend/.env` locally); never put this secret in a `VITE_*` variable or commit it. The Nutri screen can search Recipe API and authenticated users can save returned recipes to their private collection. Recipe API is read-only, so recipe generation is not currently supported.
+Recipe API imports are proxied through the backend. Set `RECIPE_API_KEY` privately in Render (and in `backend/.env` locally); never put this secret in a `VITE_*` variable or commit it. Recipe API is read-only, so recipe generation is not currently supported.
 
 Vite embeds `VITE_API_URL` into the frontend at build time, so a new deployment is required after changing it. If the frontend uses a different production domain, update Render's `CLIENT_ORIGIN` to that exact origin and redeploy the backend.
 
@@ -197,11 +173,10 @@ Vite embeds `VITE_API_URL` into the frontend at build time, so a new deployment 
 
 Selected photos are resized in the browser and stored as JPEG data with their recipe document in MongoDB. Image capture depends on browser and device support; the file picker remains available. Existing HTTP(S) image URLs are also supported. Starter recipe photos use Unsplash; see the [Unsplash License](https://unsplash.com/license).
 
-Recipes are stored in MongoDB. Public starter recipes are shared for reading; recipes created by signed-in users are private to their owner. Shopping-list items are stored in browser `localStorage`, so they are specific to that browser and device.
+Recipes are stored in MongoDB and can be browsed and managed without an account. Shopping-list items are stored in browser `localStorage`, so they are specific to that browser and device.
 
 ## Security
 
 - Never commit `.env` files, database passwords, or complete credential-bearing connection strings.
-- Keep `JWT_SECRET` private and use a separate random value for each environment.
 - If a database password is exposed, rotate it in Atlas and update the Render `MONGODB_URI` environment variable.
 - Use a strong password for the Atlas database user and restrict network access to the required IP ranges where possible.

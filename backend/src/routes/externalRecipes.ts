@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { z } from "zod";
-import { requireAuth } from "../middleware/auth";
 
 const router = Router();
 const recipeApiBaseUrl = process.env.RECIPE_API_URL ?? "https://recipeapi.io/api/v1";
@@ -35,7 +34,7 @@ function normalizeRecipe(recipe: Record<string, unknown>) {
   };
 }
 
-router.get("/search", requireAuth, async (req, res, next) => {
+router.get("/search", async (req, res, next) => {
   try {
     const apiKey = process.env.RECIPE_API_KEY;
     if (!apiKey) {

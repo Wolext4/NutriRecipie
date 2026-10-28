@@ -115,8 +115,18 @@ export default function App() {
         recipesApi.categories(),
         recipesApi.list("", "All recipes", "recent")
       ]);
-      setRecipes(result);
-      setAllRecipes(all);
+      let apiResult = [];
+      try {
+        const externalResult = await externalRecipesApi.search({ search });
+        apiResult = externalResult.recipes;
+      } catch {
+        // Local recipes remain usable when the external provider is unavailable.
+      }
+      setExternalRecipes(apiResult);
+      const combinedRecipes = [...result, ...apiResult];
+      const combinedAllRecipes = [...all, ...apiResult];
+      setRecipes(combinedRecipes);
+      setAllRecipes(combinedAllRecipes);
       setCategories(categoryList);
       setError("");
     } catch (loadError) {
@@ -278,6 +288,6 @@ export default function App() {
     <div className="home-indicator" />
     {showForm && <RecipeForm recipe={editing || undefined} onClose={() => { setShowForm(false); setEditing(null); }} onSave={saveRecipe} />}
     {showFilters && <FilterSheet categories={categoryNames} category={activeCategory} setCategory={setActiveCategory} maxTime={maxTime} setMaxTime={setMaxTime} sort={sort} setSort={setSort} onClose={() => setShowFilters(false)} onApply={() => { setShowFilters(false); setScreen("recipes"); }} />}
-    {selected && <RecipeDetails recipe={selected} onClose={() => setSelected(null)} canManage onEdit={() => { setEditing(selected); setSelected(null); setShowForm(true); }} onDelete={() => void deleteRecipe(selected)} onAddShopping={addToShopping} />}
+    {selected && <RecipeDetails recipe={selected} onClose={() => setSelected(null)} canManage={!selected.external} onEdit={() => { setEditing(selected); setSelected(null); setShowForm(true); }} onDelete={() => void deleteRecipe(selected)} onAddShopping={addToShopping} />}
   </main>;
 }

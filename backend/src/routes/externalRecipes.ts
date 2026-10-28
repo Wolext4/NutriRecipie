@@ -8,7 +8,7 @@ const queryInput = z.object({
   search: z.string().trim().max(100).optional(),
   ingredients: z.string().trim().max(300).optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1)
-}).refine((value) => value.search || value.ingredients, "Enter a recipe name or ingredient.");
+});
 
 function normalizeRecipe(recipe: Record<string, unknown>) {
   const mealType = typeof recipe.meal_type === "string" ? recipe.meal_type : "main";
@@ -21,6 +21,7 @@ function normalizeRecipe(recipe: Record<string, unknown>) {
     : [];
 
   return {
+    external: true,
     externalId: String(recipe.id ?? ""),
     name: typeof recipe.name === "string" ? recipe.name : "Imported recipe",
     description: typeof recipe.description === "string" ? recipe.description : "Imported from Recipe API.",

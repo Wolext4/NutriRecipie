@@ -5,6 +5,8 @@ const recipeSchema = new Schema(
     name: { type: String, required: true, trim: true, maxlength: 100 },
     description: { type: String, required: true, trim: true, maxlength: 500 },
     imageUrl: { type: String, trim: true, default: "" },
+    owner: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
+    isPublic: { type: Boolean, default: false, index: true },
     category: { type: String, required: true, trim: true, maxlength: 40 },
     prepTime: { type: Number, required: true, min: 0 },
     cookTime: { type: Number, required: true, min: 0 },

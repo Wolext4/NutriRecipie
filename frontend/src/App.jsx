@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, BookOpen, Check, ChefHat, ChevronDown, ChevronRight, Clock3,
+  ArrowLeft, BookOpen, Check, ChevronDown, ChevronRight, Clock3,
   Coffee, Filter, Heart, Home, ListPlus, Plus, Search, ShoppingBag,
   ShoppingBasket, SlidersHorizontal, Sparkles, Trash2, UserRound, Utensils,
   X
 } from "lucide-react";
 import RecipeForm from "./RecipeForm";
-import { recipesApi } from "./api";
+import AuthScreen from "./AuthScreen";
+import { authApi, externalRecipesApi, getAuthToken, recipesApi, setAuthToken } from "./api";
 
 const FALLBACK_CATEGORIES = ["Breakfast", "Dinner", "Lunch", "Dessert", "Snack", "Drinks"];
 const categoryPhotos = {
@@ -21,19 +22,6 @@ const fallbackPhoto = "photo-1547592180-85f173990554";
 const photoUrl = (id) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=850&q=85`;
 const categoryIcons = { Breakfast: Coffee, Dinner: Utensils, Lunch: Utensils, Dessert: Sparkles, Snack: Heart, Drinks: Coffee };
 
-function Welcome({ onContinue }) {
-  const [name, setName] = useState("");
-  return (
-    <main className="welcome-screen">
-      <header className="welcome-header"><a className="app-logo" href="#" onClick={(event) => event.preventDefault()}><span className="logo-mark"><ChefHat size={19} /></span>NutriRecipie</a><button className="skip-button" onClick={onContinue}>Skip</button></header>
-      <div className="welcome-illustration"><div className="welcome-plate"><span>g</span><Sparkles className="plate-sparkle" size={20} /></div><span className="food-doodle doodle-one">✳</span><span className="food-doodle doodle-two">✿</span><span className="food-doodle doodle-three">· · ·</span></div>
-      <section className="welcome-copy"><span className="eyebrow">A LITTLE MORE JOY IN YOUR KITCHEN</span><h1>Good food starts<br />with <em>your favorites.</em></h1><p>Keep the recipes you love close, and find something lovely to make today.</p></section>
-      <div className="welcome-actions"><label className="welcome-name"><UserRound size={17} /><input value={name} onChange={(event) => setName(event.target.value)} placeholder="What should we call you? (optional)" /></label><button className="welcome-continue" onClick={() => onContinue(name.trim())}>Continue <ChevronRight size={17} /></button><div className="welcome-or"><span />OR<span /></div><button className="guest-button" onClick={() => onContinue()}>Continue as a guest</button><p className="welcome-terms">Your personal recipe book, right on this device.</p></div>
-      <div className="home-indicator" />
-    </main>
-  );
-}
-
 function RecipeCard({ recipe, onClick, compact = false }) {
   return (
     <button className={`recipe-card ${compact ? "recipe-card-compact" : ""}`} onClick={onClick}>
@@ -46,7 +34,7 @@ function RecipeCard({ recipe, onClick, compact = false }) {
   );
 }
 
-function RecipeDetails({ recipe, onClose, onEdit, onDelete, onAddShopping }) {
+function RecipeDetails({ recipe, onClose, onEdit, onDelete, onAddShopping, canManage }) {
   return (
     <div className="sheet-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="recipe-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="detail-title">
@@ -63,7 +51,7 @@ function RecipeDetails({ recipe, onClose, onEdit, onDelete, onAddShopping }) {
           <ul className="ingredient-list">{recipe.ingredients.map((item, index) => <li key={`${item}-${index}`}><span className="ingredient-bullet" />{item}</li>)}</ul>
           <h3 className="method-title">Let's make it</h3>
           <ol className="method-list">{recipe.instructions.map((step, index) => <li key={`${step}-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><p>{step}</p></li>)}</ol>
-          <div className="detail-actions"><button className="button button-quiet" onClick={onEdit}>Edit recipe</button><button className="delete-recipe" onClick={onDelete}><Trash2 size={15} /> Remove</button></div>
+          {canManage && <div className="detail-actions"><button className="button button-quiet" onClick={onEdit}>Edit recipe</button><button className="delete-recipe" onClick={onDelete}><Trash2 size={15} /> Remove</button></div>}
         </div>
       </section>
     </div>
@@ -96,8 +84,10 @@ function BottomNav({ active, onChange }) {
 }
 
 export default function App() {
-  const [welcome, setWelcome] = useState(() => localStorage.getItem("gather-welcome-complete") !== "yes");
-  const [userName, setUserName] = useState(() => localStorage.getItem("gather-user-name") || "");
+  const [authUser, setAuthUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [showAuthScreen, setShowAuthScreen] = useState(true);
+  const [authMode, setAuthMode] = useState("login");
   const [screen, setScreen] = useState("recipes");
   const [recipes, setRecipes] = useState([]);
   const [allRecipes, setAllRecipes] = useState([]);
@@ -109,6 +99,9 @@ export default function App() {
   const [sort, setSort] = useState("recent");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [externalRecipes, setExternalRecipes] = useState([]);
+  const [externalLoading, setExternalLoading] = useState(false);
+  const [externalError, setExternalError] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -118,6 +111,39 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("gather-shopping-list") || "[]"); }
     catch { return []; }
   });
+
+  useEffect(() => {
+    let active = true;
+    async function restoreSession() {
+      if (!getAuthToken()) {
+        setAuthReady(true);
+        return;
+      }
+      try {
+        const user = await authApi.me();
+        if (active) {
+          setAuthUser(user);
+          setShowAuthScreen(false);
+        }
+      } catch {
+        setAuthToken(null);
+      } finally {
+        if (active) setAuthReady(true);
+      }
+    }
+    void restoreSession();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    function handleExpiredSession() {
+      setAuthUser(null);
+      setAuthMode("login");
+      setShowAuthScreen(true);
+    }
+    window.addEventListener("nutrirecipie-auth-expired", handleExpiredSession);
+    return () => window.removeEventListener("nutrirecipie-auth-expired", handleExpiredSession);
+  }, []);
 
   const loadRecipes = useCallback(async () => {
     setLoading(true);
@@ -144,9 +170,10 @@ export default function App() {
   }, [searchInput]);
 
   useEffect(() => {
+    if (!authReady || showAuthScreen) return undefined;
     const timer = window.setTimeout(() => void loadRecipes(), 150);
     return () => window.clearTimeout(timer);
-  }, [loadRecipes]);
+  }, [loadRecipes, authReady, showAuthScreen, authUser?.id]);
 
   useEffect(() => {
     localStorage.setItem("gather-shopping-list", JSON.stringify(shoppingList));
@@ -162,17 +189,49 @@ export default function App() {
   );
   const categoryList = showAllCategories ? categoryNames : categoryNames.slice(0, 4);
 
-  function continueAsGuest(name = "") {
-    const cleanName = typeof name === "string" ? name : "";
-    if (cleanName) {
-      localStorage.setItem("gather-user-name", cleanName);
-      setUserName(cleanName);
+  async function submitAuth({ name, email, password }) {
+    const session = authMode === "register"
+      ? await authApi.register(name, email, password)
+      : await authApi.login(email, password);
+    setAuthToken(session.token);
+    setAuthUser(session.user);
+    setShowAuthScreen(false);
+    setError("");
+  }
+
+  function browseAsGuest() {
+    setAuthToken(null);
+    setAuthUser(null);
+    setShowAuthScreen(false);
+  }
+
+  function requestSignIn() {
+    setAuthMode("login");
+    setShowAuthScreen(true);
+  }
+
+  function signOut() {
+    setAuthToken(null);
+    setAuthUser(null);
+    setShowAuthScreen(true);
+    setAuthMode("login");
+    setScreen("recipes");
+    setSelected(null);
+    setShowForm(false);
+    setEditing(null);
+  }
+
+  function startCreateRecipe() {
+    if (!authUser) {
+      requestSignIn();
+      return;
     }
-    localStorage.setItem("gather-welcome-complete", "yes");
-    setWelcome(false);
+    setEditing(null);
+    setShowForm(true);
   }
 
   async function saveRecipe(input) {
+    if (!authUser) throw new Error("Sign in to save recipes.");
     if (editing) await recipesApi.update(editing._id, input);
     else await recipesApi.create(input);
     setShowForm(false);
@@ -180,7 +239,47 @@ export default function App() {
     await loadRecipes();
   }
 
+  async function searchExternalRecipes() {
+    const query = searchInput.trim();
+    if (!query) return;
+    setExternalLoading(true);
+    setExternalError("");
+    try {
+      const result = await externalRecipesApi.search({ search: query });
+      setExternalRecipes(result.recipes);
+    } catch (externalSearchError) {
+      setExternalError(externalSearchError instanceof Error ? externalSearchError.message : "Couldn't search Recipe API.");
+    } finally {
+      setExternalLoading(false);
+    }
+  }
+
+  async function importExternalRecipe(recipe) {
+    if (!authUser) {
+      requestSignIn();
+      return;
+    }
+    try {
+      await recipesApi.create({
+        name: recipe.name,
+        description: recipe.description,
+        imageUrl: recipe.imageUrl,
+        category: recipe.category,
+        prepTime: recipe.prepTime,
+        cookTime: recipe.cookTime,
+        servings: recipe.servings,
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions
+      });
+      await loadRecipes();
+      setScreen("menu");
+    } catch (importError) {
+      setExternalError(importError instanceof Error ? importError.message : "Couldn't import this recipe.");
+    }
+  }
+
   async function deleteRecipe(recipe) {
+    if (!authUser || recipe.owner !== authUser.id) return;
     if (!window.confirm(`Remove "${recipe.name}" from your recipe book?`)) return;
     try {
       await recipesApi.remove(recipe._id);
@@ -218,7 +317,7 @@ export default function App() {
   function renderHome() {
     const featured = (search || activeCategory !== "All recipes" || maxTime) ? visibleRecipes : allRecipes;
     return <>
-      <header className="home-header"><div><span className="home-greeting">GOOD FOOD, GOOD MOOD <span>✳</span></span><h1>What do you want<br />to <em>cook{userName ? `, ${userName}` : ""}?</em></h1></div><button className="profile-bubble" aria-label="Your profile" onClick={() => setScreen("profile")}>{userName ? userName[0].toUpperCase() : <UserRound size={19} />}</button></header>
+      <header className="home-header"><div><span className="home-greeting">GOOD FOOD, GOOD MOOD <span>✳</span></span><h1>What do you want<br />to <em>cook{authUser ? `, ${authUser.name}` : ""}?</em></h1></div><button className="profile-bubble" aria-label={authUser ? "Your profile" : "Sign in"} onClick={() => setScreen("profile")}>{authUser ? authUser.name[0].toUpperCase() : <UserRound size={19} />}</button></header>
       <form className="search-bar" onSubmit={(event) => { event.preventDefault(); setSearch(searchInput.trim()); }}><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search for a recipe" aria-label="Search recipes" /><button className="filter-trigger" type="button" aria-label="Open filters" onClick={() => setShowFilters(true)}><SlidersHorizontal size={17} /></button></form>
       {(search || activeCategory !== "All recipes") && <div className="search-context"><span>{activeCategory === "All recipes" ? "Search results" : activeCategory}{search ? ` for “${search}”` : ""}</span><button onClick={() => { setSearchInput(""); setSearch(""); setActiveCategory("All recipes"); setMaxTime(0); }}>Clear <X size={13} /></button></div>}
       {!(search || activeCategory !== "All recipes") && <section className="assistant-banner"><div className="assistant-banner-top"><span className="assistant-spark"><Sparkles size={16} /></span><span className="assistant-label">A LITTLE KITCHEN INSPIRATION</span><span className="assistant-new">IDEAS</span></div><h2>Not sure what to make?</h2><p>Search your saved recipes by name or ingredient.</p><button className="assistant-input" onClick={() => setScreen("nutri")}><span>Tell us what’s in your fridge…</span><ChevronRight size={17} /></button></section>}
@@ -229,11 +328,16 @@ export default function App() {
 
   function renderNutri() {
     const suggestions = ["chicken", "tomato", "pasta", "vegetarian"];
-    return <><header className="subpage-header"><span className="eyebrow">A LITTLE INSPIRATION</span><h1>Let's find<br /><em>something good.</em></h1><p>What ingredients do you have on hand?</p></header><form className="search-bar nutri-search" onSubmit={(event) => { event.preventDefault(); setSearch(searchInput.trim()); setActiveCategory("All recipes"); }}><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="e.g. chicken, tomatoes…" aria-label="Search by ingredient" /><button type="submit" aria-label="Search"><ChevronRight size={18} /></button></form><div className="suggestion-chips">{suggestions.map((item) => <button key={item} onClick={() => { setSearchInput(item); setSearch(item); }}>{item}</button>)}</div><section className="content-section nutri-results"><div className="section-heading"><div><span className="eyebrow">FROM YOUR RECIPE BOOK</span><h2>{search ? `With “${search}”` : "Recipes to inspire"}</h2></div></div>{renderRecipeResults(search ? recipes : allRecipes.slice(0, 6))}</section></>;
+    return <><header className="subpage-header"><span className="eyebrow">A LITTLE INSPIRATION</span><h1>Let's find<br /><em>something good.</em></h1><p>What ingredients do you have on hand?</p></header><form className="search-bar nutri-search" onSubmit={(event) => { event.preventDefault(); setSearch(searchInput.trim()); setActiveCategory("All recipes"); }}><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="e.g. chicken, tomatoes…" aria-label="Search by ingredient" /><button type="submit" aria-label="Search"><ChevronRight size={18} /></button></form><div className="suggestion-chips">{suggestions.map((item) => <button key={item} onClick={() => { setSearchInput(item); setSearch(item); }}>{item}</button>)}</div><section className="content-section external-results"><div className="section-heading"><div><span className="eyebrow">RECIPE API</span><h2>Import a recipe</h2></div><button className="show-all" onClick={() => void searchExternalRecipes()} disabled={externalLoading}>{externalLoading ? "Searching…" : "Search API"} <ChevronRight size={15} /></button></div>{externalError && <p className="form-error" role="alert">{externalError}</p>}{externalRecipes.length > 0 && <div className="external-recipe-list">{externalRecipes.map((recipe) => <article className="external-recipe" key={recipe.externalId}><div><h3>{recipe.name}</h3><p>{recipe.description}</p></div><button className="text-action" onClick={() => void importExternalRecipe(recipe)}>{authUser ? "Save to my recipes" : "Sign in to save"} <Plus size={15} /></button></article>)}</div>}</section><section className="content-section nutri-results"><div className="section-heading"><div><span className="eyebrow">FROM YOUR RECIPE BOOK</span><h2>{search ? `With “${search}”` : "Recipes to inspire"}</h2></div></div>{renderRecipeResults(search ? recipes : allRecipes.slice(0, 6))}</section></>;
   }
 
   function renderMenu() {
-    return <><header className="subpage-header menu-header"><span className="eyebrow">YOUR PERSONAL COLLECTION</span><div className="menu-title-row"><h1>My <em>recipes.</em></h1><button className="add-round" aria-label="Add recipe" onClick={() => { setEditing(null); setShowForm(true); }}><Plus size={20} /></button></div><p>Your tried-and-true favorites, all in one place.</p></header><div className="search-bar menu-search"><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search your recipes" /><button className="filter-trigger" onClick={() => setShowFilters(true)} aria-label="Filter recipes"><Filter size={17} /></button></div><div className="menu-summary"><BookOpen size={16} /><span>{allRecipes.length} saved {allRecipes.length === 1 ? "recipe" : "recipes"}</span><button onClick={() => setShowFilters(true)}>Filters <ChevronDown size={14} /></button></div>{renderRecipeResults(visibleRecipes)}</>;
+    if (!authUser) {
+      return <><header className="subpage-header menu-header"><span className="eyebrow">YOUR PERSONAL COLLECTION</span><div className="menu-title-row"><h1>My <em>recipes.</em></h1></div><p>Sign in to create and manage your own private recipes.</p></header><div className="no-results"><span className="no-results-icon"><UserRound size={20} /></span><h3>Your collection starts with an account</h3><p>Create an account to save recipes that only you can see.</p><button className="text-action" onClick={requestSignIn}>Sign in or create account <ChevronRight size={15} /></button></div></>;
+    }
+
+    const myRecipes = visibleRecipes.filter((recipe) => recipe.owner === authUser.id);
+    return <><header className="subpage-header menu-header"><span className="eyebrow">YOUR PERSONAL COLLECTION</span><div className="menu-title-row"><h1>My <em>recipes.</em></h1><button className="add-round" aria-label="Add recipe" onClick={startCreateRecipe}><Plus size={20} /></button></div><p>Your tried-and-true favorites, all in one place.</p></header><div className="search-bar menu-search"><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search your recipes" /><button className="filter-trigger" onClick={() => setShowFilters(true)} aria-label="Filter recipes"><Filter size={17} /></button></div><div className="menu-summary"><BookOpen size={16} /><span>{myRecipes.length} saved {myRecipes.length === 1 ? "recipe" : "recipes"}</span><button onClick={() => setShowFilters(true)}>Filters <ChevronDown size={14} /></button></div>{renderRecipeResults(myRecipes)}</>;
   }
 
   function renderPurchase() {
@@ -243,10 +347,15 @@ export default function App() {
 
   function renderProfile() {
     const counts = categoryNames.map((category) => ({ category, count: allRecipes.filter((recipe) => recipe.category === category).length })).filter((item) => item.count > 0);
-    return <><header className="profile-cover"><div className="profile-avatar-large">{userName ? userName[0].toUpperCase() : <UserRound size={26} />}</div><span className="eyebrow">YOUR GATHER PROFILE</span><h1>{userName || "Home cook"}</h1><p>Your kitchen, your favorites.</p></header><div className="profile-stats"><div><strong>{allRecipes.length}</strong><span>Recipes saved</span></div><div><strong>{categories.length}</strong><span>Categories</span></div><div><strong>{shoppingList.length}</strong><span>On your list</span></div></div><section className="profile-section"><div className="section-heading"><div><span className="eyebrow">YOUR COLLECTION</span><h2>Recipe categories</h2></div></div>{counts.length ? counts.map((item) => <button className="profile-category" key={item.category} onClick={() => { setActiveCategory(item.category); setScreen("menu"); }}><span>{item.category}</span><span>{item.count} recipes <ChevronRight size={15} /></span></button>) : <div className="profile-empty">Your categories will show up here once you add recipes.</div>}</section><button className="profile-add" onClick={() => { setEditing(null); setShowForm(true); }}><Plus size={17} /> Add a recipe</button></>;
+    if (!authUser) {
+      return <><header className="profile-cover"><div className="profile-avatar-large"><UserRound size={26} /></div><span className="eyebrow">YOUR NUTRIRECIPIE PROFILE</span><h1>Browsing as a guest</h1><p>Sign in to manage your private recipe collection.</p></header><button className="profile-add" onClick={requestSignIn}>Sign in or create account <ChevronRight size={15} /></button></>;
+    }
+    const myRecipes = allRecipes.filter((recipe) => recipe.owner === authUser.id);
+    return <><header className="profile-cover"><div className="profile-avatar-large">{authUser.name[0].toUpperCase()}</div><span className="eyebrow">YOUR NUTRIRECIPIE PROFILE</span><h1>{authUser.name}</h1><p>{authUser.email}</p></header><div className="profile-stats"><div><strong>{myRecipes.length}</strong><span>My recipes</span></div><div><strong>{categories.length}</strong><span>Categories</span></div><div><strong>{shoppingList.length}</strong><span>On your list</span></div></div><section className="profile-section"><div className="section-heading"><div><span className="eyebrow">YOUR COLLECTION</span><h2>Recipe categories</h2></div></div>{counts.length ? counts.map((item) => <button className="profile-category" key={item.category} onClick={() => { setActiveCategory(item.category); setScreen("menu"); }}><span>{item.category}</span><span>{item.count} recipes <ChevronRight size={15} /></span></button>) : <div className="profile-empty">Your categories will show up here once you add recipes.</div>}</section><button className="profile-add" onClick={startCreateRecipe}><Plus size={17} /> Add a recipe</button><button className="profile-add" onClick={signOut}>Sign out</button></>;
   }
 
-  if (welcome) return <Welcome onContinue={continueAsGuest} />;
+  if (!authReady) return <main className="auth-loading"><span className="loader" />Checking your account…</main>;
+  if (showAuthScreen) return <AuthScreen mode={authMode} onModeChange={setAuthMode} onSubmit={submitAuth} onGuest={browseAsGuest} />;
 
   return <main className="app-frame">
     <div className="screen-content" key={screen}>
@@ -257,11 +366,11 @@ export default function App() {
       {screen === "profile" && renderProfile()}
       {error && <div className="error-banner" role="alert"><span>{error}</span><button onClick={() => void loadRecipes()}>Retry</button></div>}
     </div>
-    <button className="floating-add" aria-label="Add a recipe" onClick={() => { setEditing(null); setShowForm(true); }}><Plus size={22} /></button>
+    <button className="floating-add" aria-label="Add a recipe" onClick={startCreateRecipe}><Plus size={22} /></button>
     <BottomNav active={screen} onChange={setScreen} />
     <div className="home-indicator" />
     {showForm && <RecipeForm recipe={editing || undefined} onClose={() => { setShowForm(false); setEditing(null); }} onSave={saveRecipe} />}
     {showFilters && <FilterSheet categories={categoryNames} category={activeCategory} setCategory={setActiveCategory} maxTime={maxTime} setMaxTime={setMaxTime} sort={sort} setSort={setSort} onClose={() => setShowFilters(false)} onApply={() => { setShowFilters(false); setScreen("recipes"); }} />}
-    {selected && <RecipeDetails recipe={selected} onClose={() => setSelected(null)} onEdit={() => { setEditing(selected); setSelected(null); setShowForm(true); }} onDelete={() => void deleteRecipe(selected)} onAddShopping={addToShopping} />}
+    {selected && <RecipeDetails recipe={selected} onClose={() => setSelected(null)} canManage={Boolean(authUser && selected.owner === authUser.id)} onEdit={() => { if (!authUser || selected.owner !== authUser.id) return; setEditing(selected); setSelected(null); setShowForm(true); }} onDelete={() => void deleteRecipe(selected)} onAddShopping={addToShopping} />}
   </main>;
 }

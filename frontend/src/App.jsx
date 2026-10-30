@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft, BookOpen, Check, ChevronDown, ChevronRight, Clock3,
   Coffee, Filter, Heart, Home, ListPlus, Plus, Search, ShoppingBag,
-  ShoppingBasket, SlidersHorizontal, Sparkles, Trash2, UserRound, Utensils,
+  ShoppingBasket, SlidersHorizontal, Sparkles, Sun, Moon, Trash2, UserRound, Utensils,
   X
 } from "lucide-react";
 import RecipeForm from "./RecipeForm";
@@ -87,6 +87,7 @@ function BottomNav({ active, onChange }) {
 
 export default function App() {
   const [screen, setScreen] = useState("recipes");
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("nutrirecipie-theme") === "dark");
   const [recipes, setRecipes] = useState([]);
   const [allRecipes, setAllRecipes] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -142,8 +143,9 @@ export default function App() {
         setExternalError("Recipe API is unavailable right now. Your saved recipes are still available.");
       }
       setExternalRecipes(apiResult);
-      setRecipes(result);
-      setAllRecipes(all);
+      const combined = [...result, ...apiResult];
+      setRecipes(combined);
+      setAllRecipes([...all, ...apiResult]);
       setCategories(categoryList);
       setError("");
     } catch (loadError) {
@@ -167,6 +169,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("gather-shopping-list", JSON.stringify(shoppingList));
   }, [shoppingList]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? "dark" : "light";
+    localStorage.setItem("nutrirecipie-theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
 
   const categoryNames = useMemo(
     () => [...new Set([...FALLBACK_CATEGORIES, ...categories])],
@@ -259,12 +266,16 @@ export default function App() {
     setShoppingList((current) => current.map((item) => item.id === id ? { ...item, checked: !item.checked } : item));
   }
 
+  function toggleTheme() {
+    setDarkMode((current) => !current);
+  }
+
   function renderRecipeResults(items) {
     if (loading) return <div className="inline-loading"><span className="loader" />Finding something delicious…</div>;
     if (!items.length) {
       return <div className="no-results"><span className="no-results-icon"><Search size={20} /></span><h3>No recipes found just yet</h3><p>Try another search, choose a different category, or loosen your filters.</p>      <button className="text-action" onClick={() => { setSearchInput(""); setSearch(""); setActiveCategory("All recipes"); setMaxTime(0); setMaxPrepTime(0); setMaxCookTime(0); setMinServings(0); }}>Clear search & filters</button></div>;
     }
-    return <div className="vertical-recipes">{items.map((recipe) => <RecipeCard key={recipe._id} recipe={recipe} onClick={() => setSelected(recipe)} />)}</div>;
+    return <div className="vertical-recipes">{items.map((recipe) => <RecipeCard key={recipe._id || `api-${recipe.externalId}`} recipe={recipe} onClick={() => setSelected(recipe)} />)}</div>;
   }
 
   function renderExternalResults(items = externalRecipes) {
@@ -281,17 +292,16 @@ export default function App() {
     return <>
       <header className="home-header"><div><span className="home-greeting">GOOD FOOD, GOOD MOOD <span>✳</span></span><h1>What do you want<br />to <em>cook?</em></h1></div><button className="profile-bubble" aria-label="Profile" onClick={() => setScreen("profile")}><UserRound size={19} /></button></header>
       <form className="search-bar" onSubmit={(event) => { event.preventDefault(); setSearch(searchInput.trim()); }}><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search for a recipe" aria-label="Search recipes" /><button className="filter-trigger" type="button" aria-label="Open filters" onClick={() => setShowFilters(true)}><SlidersHorizontal size={17} /></button></form>
-      {(search || activeCategory !== "All recipes") && <div className="search-context"><span>{activeCategory === "All recipes" ? "Search results" : activeCategory}{search ? ` for “${search}”` : ""}</span><button onClick={() => { setSearchInput(""); setSearch(""); setActiveCategory("All recipes"); setMaxTime(0); }}>Clear <X size={13} /></button></div>}
+      {(search || activeCategory !== "All recipes") && <div className="search-context"><span>{activeCategory === "All recipes" ? "Search results" : activeCategory}{search ? ` for “${search}”` : ""}</span><button onClick={() => { setSearchInput(""); setSearch(""); setActiveCategory("All recipes"); setMaxTime(0); setMaxPrepTime(0); setMaxCookTime(0); setMinServings(0); }}>Clear <X size={13} /></button></div>}
       {!(search || activeCategory !== "All recipes") && <section className="assistant-banner"><div className="assistant-banner-top"><span className="assistant-spark"><Sparkles size={16} /></span><span className="assistant-label">A LITTLE KITCHEN INSPIRATION</span><span className="assistant-new">IDEAS</span></div><h2>Not sure what to make?</h2><p>Search your saved recipes by name or ingredient.</p><button className="assistant-input" onClick={() => setScreen("nutri")}><span>Tell us what’s in your fridge…</span><ChevronRight size={17} /></button></section>}
       <section className="content-section"><div className="section-heading"><div><span className="eyebrow">FIND YOUR NEXT FAVORITE</span><h2>Categories</h2></div><button className="show-all" onClick={() => setShowAllCategories(!showAllCategories)}>{showAllCategories ? "Show less" : "Show all"} <ChevronRight size={15} /></button></div><div className="category-scroller">{categoryList.map((category) => { const Icon = categoryIcons[category] || Utensils; const count = allRecipes.filter((recipe) => recipe.category === category).length; return <button key={category} className={`category-card ${activeCategory === category ? "category-card-active" : ""}`} onClick={() => { setActiveCategory(activeCategory === category ? "All recipes" : category); setScreen("recipes"); }}><img src={photoUrl(categoryPhotos[category] || fallbackPhoto)} alt="" /><span className="category-image-shade" /><span className="category-icon"><Icon size={16} /></span><span className="category-name">{category}</span><span className="category-count">{count} {count === 1 ? "recipe" : "recipes"}</span></button>; })}</div></section>
       <section className="content-section new-section"><div className="section-heading"><div><span className="eyebrow">{search || activeCategory !== "All recipes" ? "YOUR SEARCH" : "FRESH FROM YOUR KITCHEN"}</span><h2>{search || activeCategory !== "All recipes" ? "Saved recipes" : "Your recipes"}</h2></div><button className="show-all" onClick={() => setScreen("menu")}>Show all <ChevronRight size={15} /></button></div>{renderRecipeResults(featured)}</section>
-      <section className="content-section api-section"><div className="section-heading"><div><span className="eyebrow">RECIPE API</span><h2>More ideas for you</h2></div><button className="show-all" onClick={() => setScreen("nutri")}>Explore all <ChevronRight size={15} /></button></div>{renderExternalResults()}</section>
     </>;
   }
 
   function renderNutri() {
     const suggestions = ["chicken", "tomato", "pasta", "vegetarian"];
-    return <><header className="subpage-header"><span className="eyebrow">A LITTLE INSPIRATION</span><h1>Let's find<br /><em>something good.</em></h1><p>What ingredients do you have on hand?</p></header><form className="search-bar nutri-search" onSubmit={(event) => { event.preventDefault(); setSearch(searchInput.trim()); setActiveCategory("All recipes"); }}><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="e.g. chicken, tomatoes…" aria-label="Search by ingredient" /><button type="submit" aria-label="Search"><ChevronRight size={18} /></button></form><div className="suggestion-chips">{suggestions.map((item) => <button key={item} onClick={() => { setSearchInput(item); setSearch(item); }}>{item}</button>)}</div><section className="content-section external-results"><div className="section-heading"><div><span className="eyebrow">RECIPE API</span><h2>Import a recipe</h2></div><button className="show-all" onClick={() => void searchExternalRecipes()} disabled={externalLoading}>{externalLoading ? "Searching…" : "Search API"} <ChevronRight size={15} /></button></div>{externalError && <p className="form-error" role="alert">{externalError}</p>}{externalRecipes.length > 0 && <div className="external-recipe-list">{externalRecipes.map((recipe) => <article className="external-recipe" key={recipe.externalId}><div><h3>{recipe.name}</h3><p>{recipe.description}</p></div><button className="text-action" onClick={() => void importExternalRecipe(recipe)}>Save to my recipes <Plus size={15} /></button></article>)}</div>}</section><section className="content-section nutri-results"><div className="section-heading"><div><span className="eyebrow">FROM YOUR RECIPE BOOK</span><h2>{search ? `With “${search}”` : "Recipes to inspire"}</h2></div></div>{renderRecipeResults(search ? recipes : allRecipes.slice(0, 6))}</section></>;
+    return <><header className="subpage-header"><span className="eyebrow">A LITTLE INSPIRATION</span><h1>Let's find<br /><em>something good.</em></h1><p>What ingredients do you have on hand?</p></header><form className="search-bar nutri-search" onSubmit={(event) => { event.preventDefault(); setSearch(searchInput.trim()); setActiveCategory("All recipes"); }}><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="e.g. chicken, tomatoes…" aria-label="Search by ingredient" /><button type="submit" aria-label="Search"><ChevronRight size={18} /></button></form><div className="suggestion-chips">{suggestions.map((item) => <button key={item} onClick={() => { setSearchInput(item); setSearch(item); }}>{item}</button>)}</div><section className="content-section nutri-results"><div className="section-heading"><div><span className="eyebrow">ALL RECIPE IDEAS</span><h2>{search ? `With “${search}”` : "Recipes to inspire"}</h2></div></div>{renderRecipeResults(search ? recipes : allRecipes.slice(0, 12))}</section></>;
   }
 
   function renderMenu() {
@@ -305,7 +315,7 @@ export default function App() {
 
   function renderProfile() {
     const counts = categoryNames.map((category) => ({ category, count: allRecipes.filter((recipe) => recipe.category === category).length })).filter((item) => item.count > 0);
-    return <><header className="profile-cover"><div className="profile-avatar-large"><UserRound size={26} /></div><span className="eyebrow">YOUR NUTRIRECIPIE KITCHEN</span><h1>Recipe book</h1><p>Everything you need to plan and make something delicious.</p></header><div className="profile-stats"><div><strong>{allRecipes.length}</strong><span>Recipes</span></div><div><strong>{categories.length}</strong><span>Categories</span></div><div><strong>{shoppingList.length}</strong><span>On your list</span></div></div><section className="profile-section"><div className="section-heading"><div><span className="eyebrow">YOUR COLLECTION</span><h2>Recipe categories</h2></div></div>{counts.length ? counts.map((item) => <button className="profile-category" key={item.category} onClick={() => { setActiveCategory(item.category); setScreen("menu"); }}><span>{item.category}</span><span>{item.count} recipes <ChevronRight size={15} /></span></button>) : <div className="profile-empty">Your categories will show up here once you add recipes.</div>}</section><button className="profile-add" onClick={startCreateRecipe}><Plus size={17} /> Add a recipe</button></>;
+    return <><header className="profile-cover"><div className="profile-avatar-large"><UserRound size={26} /></div><span className="eyebrow">YOUR NUTRIRECIPIE KITCHEN</span><h1>Recipe book</h1><p>Everything you need to plan and make something delicious.</p></header><div className="profile-stats"><div><strong>{allRecipes.length}</strong><span>Recipes</span></div><div><strong>{categories.length}</strong><span>Categories</span></div><div><strong>{shoppingList.length}</strong><span>On your list</span></div></div><section className="profile-section"><div className="section-heading"><div><span className="eyebrow">YOUR COLLECTION</span><h2>Recipe categories</h2></div></div>{counts.length ? counts.map((item) => <button className="profile-category" key={item.category} onClick={() => { setActiveCategory(item.category); setScreen("menu"); }}><span>{item.category}</span><span>{item.count} recipes <ChevronRight size={15} /></span></button>) : <div className="profile-empty">Your categories will show up here once you add recipes.</div>}</section><button className="profile-add" onClick={startCreateRecipe}><Plus size={17} /> Add a recipe</button><button className="profile-add theme-toggle" onClick={toggleTheme}>{darkMode ? <Sun size={17} /> : <Moon size={17} />} {darkMode ? "Use light mode" : "Use dark mode"}</button></>;
   }
 
   return <main className="app-frame">

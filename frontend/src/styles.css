@@ -472,3 +472,72 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #edf3ee;
+  --muted: #a4b0aa;
+  --green-light: #17291d;
+  --line: #334139;
+  --paper: #1d2721;
+}
+html[data-theme="dark"] body { background: #101713; color: var(--ink); }
+html[data-theme="dark"] .app-frame,
+html[data-theme="dark"] .welcome-screen { background: #18221c; box-shadow: 0 0 42px #0008; }
+html[data-theme="dark"] .home-header h1,
+html[data-theme="dark"] .subpage-header h1,
+html[data-theme="dark"] .profile-cover h1,
+html[data-theme="dark"] .section-heading h2,
+html[data-theme="dark"] .assistant-banner h2,
+html[data-theme="dark"] .recipe-card-copy h3,
+html[data-theme="dark"] .detail-title-line h2,
+html[data-theme="dark"] .filter-heading h2,
+html[data-theme="dark"] .form-heading h2 { color: #edf3ee; }
+html[data-theme="dark"] .search-bar,
+html[data-theme="dark"] .recipe-card,
+html[data-theme="dark"] .assistant-input,
+html[data-theme="dark"] .bottom-nav,
+html[data-theme="dark"] .profile-add,
+html[data-theme="dark"] .filter-sheet,
+html[data-theme="dark"] .form-sheet,
+html[data-theme="dark"] .recipe-detail-sheet { background: #1d2721; color: var(--ink); border-color: var(--line); }
+html[data-theme="dark"] .search-bar input,
+html[data-theme="dark"] .field input,
+html[data-theme="dark"] .field textarea,
+html[data-theme="dark"] .field select { color: #edf3ee; background: transparent; border-color: #445248; }
+html[data-theme="dark"] .search-bar input::placeholder,
+html[data-theme="dark"] .field input::placeholder,
+html[data-theme="dark"] .field textarea::placeholder { color: #829087; }
+html[data-theme="dark"] .assistant-banner { background: #17291d; }
+html[data-theme="dark"] .assistant-input { border-color: #3a4b3e; color: #a4b0aa; }
+html[data-theme="dark"] .category-card { border-color: #445248; }
+html[data-theme="dark"] .category-pill,
+html[data-theme="dark"] .photo-time { background: #1d2721e8; color: #d7e2da; }
+html[data-theme="dark"] .recipe-card-copy p,
+html[data-theme="dark"] .section-empty,
+html[data-theme="dark"] .no-results p,
+html[data-theme="dark"] .subpage-header p,
+html[data-theme="dark"] .profile-cover p { color: #a4b0aa; }
+html[data-theme="dark"] .profile-category,
+html[data-theme="dark"] .shopping-item,
+html[data-theme="dark"] .detail-section-title,
+html[data-theme="dark"] .detail-title-line { border-color: var(--line); color: #dce8df; background: transparent; }
+html[data-theme="dark"] .profile-stats,
+html[data-theme="dark"] .shopping-summary { background: #1d2721; border-color: var(--line); }
+html[data-theme="dark"] .profile-stats strong,
+html[data-theme="dark"] .shopping-summary strong,
+html[data-theme="dark"] .shopping-item-copy strong { color: #edf3ee; }
+html[data-theme="dark"] .profile-stats span,
+html[data-theme="dark"] .shopping-summary small,
+html[data-theme="dark"] .shopping-item-copy small { color: #a4b0aa; }
+html[data-theme="dark"] .filter-options button { border-color: #445248; background: #26342a; color: #dce8df; }
+html[data-theme="dark"] .filter-options .option-selected { border-color: #5ecb79; background: #21452a; color: #c9f5d2; }
+html[data-theme="dark"] .filter-sheet>h3,
+html[data-theme="dark"] .field,
+html[data-theme="dark"] .field-title,
+html[data-theme="dark"] .detail-description,
+html[data-theme="dark"] .ingredient-list,
+html[data-theme="dark"] .method-list { color: #c6d2c9; }
+html[data-theme="dark"] .bottom-nav button { color: #91a096; }
+html[data-theme="dark"] .bottom-nav .nav-selected { color: #72d78a; }
+html[data-theme="dark"] .theme-toggle { color: #bdecc7; border-color: #3d5945; background: #21382a; }

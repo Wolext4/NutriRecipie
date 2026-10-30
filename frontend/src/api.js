@@ -49,8 +49,9 @@ export const recipesApi = {
 export const externalRecipesApi = {
   search(query) {
     const params = new URLSearchParams();
-    if (query.search) params.set("search", query.search);
-    if (query.ingredients) params.set("ingredients", query.ingredients);
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") params.set(key, String(value));
+    });
     return request(`/external-recipes/search?${params.toString()}`);
   }
 };

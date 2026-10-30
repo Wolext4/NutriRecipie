@@ -63,7 +63,8 @@ router.get("/search", async (req, res, next) => {
     if (parsed.data.maxCook !== undefined) query.set("cook_time_max", String(parsed.data.maxCook));
     if (parsed.data.minServings !== undefined) query.set("servings", String(parsed.data.minServings));
     const mealTypeByCategory: Record<string, string> = {
-      Breakfast: "breakfast", Dessert: "dessert", Snack: "snack", Drinks: "drink"
+      Breakfast: "breakfast", Dinner: "main", Lunch: "main",
+      Dessert: "dessert", Snack: "snack", Drinks: "drink"
     };
     if (parsed.data.category && mealTypeByCategory[parsed.data.category]) {
       query.set("meal_type", mealTypeByCategory[parsed.data.category]);

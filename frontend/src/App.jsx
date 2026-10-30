@@ -115,6 +115,8 @@ export default function App() {
 
   const loadRecipes = useCallback(async () => {
     setLoading(true);
+    setExternalLoading(true);
+    setExternalError("");
     const filters = {
       maxPrep: maxPrepTime,
       maxCook: maxCookTime,
@@ -137,19 +139,18 @@ export default function App() {
         });
         apiResult = externalResult.recipes;
       } catch {
-        // Local recipes remain usable when the external provider is unavailable.
+        setExternalError("Recipe API is unavailable right now. Your saved recipes are still available.");
       }
       setExternalRecipes(apiResult);
-      const combinedRecipes = [...result, ...apiResult];
-      const combinedAllRecipes = [...all, ...apiResult];
-      setRecipes(combinedRecipes);
-      setAllRecipes(combinedAllRecipes);
+      setRecipes(result);
+      setAllRecipes(all);
       setCategories(categoryList);
       setError("");
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Couldn't load recipes.");
     } finally {
       setLoading(false);
+      setExternalLoading(false);
     }
   }, [search, activeCategory, sort, maxPrepTime, maxCookTime, minServings]);
 
@@ -266,6 +267,15 @@ export default function App() {
     return <div className="vertical-recipes">{items.map((recipe) => <RecipeCard key={recipe._id} recipe={recipe} onClick={() => setSelected(recipe)} />)}</div>;
   }
 
+  function renderExternalResults(items = externalRecipes) {
+    if (externalLoading) return <div className="inline-loading"><span className="loader" />Finding recipes from Recipe API…</div>;
+    if (externalError) return <p className="form-error" role="alert">{externalError}</p>;
+    if (!items.length) return <p className="section-empty">No matching API recipes yet. Try another search or filter.</p>;
+    const filteredItems = items.filter((recipe) => !maxTime || recipe.prepTime + recipe.cookTime <= maxTime);
+    if (!filteredItems.length) return <p className="section-empty">No API recipes match the selected duration filter.</p>;
+    return <div className="horizontal-recipes api-recipe-scroller">{filteredItems.slice(0, 10).map((recipe) => <RecipeCard key={`api-${recipe.externalId}`} recipe={recipe} onClick={() => setSelected(recipe)} compact />)}</div>;
+  }
+
   function renderHome() {
     const featured = (search || activeCategory !== "All recipes" || maxTime) ? visibleRecipes : allRecipes;
     return <>
@@ -274,7 +284,8 @@ export default function App() {
       {(search || activeCategory !== "All recipes") && <div className="search-context"><span>{activeCategory === "All recipes" ? "Search results" : activeCategory}{search ? ` for “${search}”` : ""}</span><button onClick={() => { setSearchInput(""); setSearch(""); setActiveCategory("All recipes"); setMaxTime(0); }}>Clear <X size={13} /></button></div>}
       {!(search || activeCategory !== "All recipes") && <section className="assistant-banner"><div className="assistant-banner-top"><span className="assistant-spark"><Sparkles size={16} /></span><span className="assistant-label">A LITTLE KITCHEN INSPIRATION</span><span className="assistant-new">IDEAS</span></div><h2>Not sure what to make?</h2><p>Search your saved recipes by name or ingredient.</p><button className="assistant-input" onClick={() => setScreen("nutri")}><span>Tell us what’s in your fridge…</span><ChevronRight size={17} /></button></section>}
       <section className="content-section"><div className="section-heading"><div><span className="eyebrow">FIND YOUR NEXT FAVORITE</span><h2>Categories</h2></div><button className="show-all" onClick={() => setShowAllCategories(!showAllCategories)}>{showAllCategories ? "Show less" : "Show all"} <ChevronRight size={15} /></button></div><div className="category-scroller">{categoryList.map((category) => { const Icon = categoryIcons[category] || Utensils; const count = allRecipes.filter((recipe) => recipe.category === category).length; return <button key={category} className={`category-card ${activeCategory === category ? "category-card-active" : ""}`} onClick={() => { setActiveCategory(activeCategory === category ? "All recipes" : category); setScreen("recipes"); }}><img src={photoUrl(categoryPhotos[category] || fallbackPhoto)} alt="" /><span className="category-image-shade" /><span className="category-icon"><Icon size={16} /></span><span className="category-name">{category}</span><span className="category-count">{count} {count === 1 ? "recipe" : "recipes"}</span></button>; })}</div></section>
-      <section className="content-section new-section"><div className="section-heading"><div><span className="eyebrow">{search || activeCategory !== "All recipes" ? "YOUR SEARCH" : "FRESH FROM YOUR KITCHEN"}</span><h2>{search || activeCategory !== "All recipes" ? "Recipes" : "Recipes for you"}</h2></div><button className="show-all" onClick={() => setScreen("menu")}>Show all <ChevronRight size={15} /></button></div>{loading ? renderRecipeResults(featured) : renderRecipeResults(featured)}</section>
+      <section className="content-section new-section"><div className="section-heading"><div><span className="eyebrow">{search || activeCategory !== "All recipes" ? "YOUR SEARCH" : "FRESH FROM YOUR KITCHEN"}</span><h2>{search || activeCategory !== "All recipes" ? "Saved recipes" : "Your recipes"}</h2></div><button className="show-all" onClick={() => setScreen("menu")}>Show all <ChevronRight size={15} /></button></div>{renderRecipeResults(featured)}</section>
+      <section className="content-section api-section"><div className="section-heading"><div><span className="eyebrow">RECIPE API</span><h2>More ideas for you</h2></div><button className="show-all" onClick={() => setScreen("nutri")}>Explore all <ChevronRight size={15} /></button></div>{renderExternalResults()}</section>
     </>;
   }
 

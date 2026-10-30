@@ -112,7 +112,7 @@ The backend API is mounted at `/api`.
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | API and database connection status |
-| `GET` | `/api/recipes` | List recipes; supports `search`, `category`, and `sort=name` query parameters |
+| `GET` | `/api/recipes` | List recipes; supports `search`, `category`, `minPrep`, `maxPrep`, `minCook`, `maxCook`, `minServings`, and `sort=name` query parameters |
 | `GET` | `/api/recipes/categories` | List categories used by saved recipes |
 | `GET` | `/api/recipes/:id` | Get one recipe |
 | `POST` | `/api/recipes` | Create a recipe |

@@ -22,11 +22,14 @@ async function request(path, options = {}) {
 }
 
 export const recipesApi = {
-  list(search = "", category = "All recipes", sort = "recent") {
+  list(search = "", category = "All recipes", sort = "recent", filters = {}) {
     const query = new URLSearchParams();
     if (search) query.set("search", search);
     if (category !== "All recipes") query.set("category", category);
     if (sort) query.set("sort", sort);
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) query.set(key, String(value));
+    });
     return request(`/recipes?${query.toString()}`);
   },
   categories() {

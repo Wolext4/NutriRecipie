@@ -57,13 +57,16 @@ function RecipeDetails({ recipe, onClose, onEdit, onDelete, onAddShopping, canMa
   );
 }
 
-function FilterSheet({ categories, category, setCategory, maxTime, setMaxTime, sort, setSort, onClose, onApply }) {
+function FilterSheet({ categories, category, setCategory, maxTime, setMaxTime, maxPrepTime, setMaxPrepTime, maxCookTime, setMaxCookTime, minServings, setMinServings, sort, setSort, onClose, onApply }) {
   return (
     <div className="sheet-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="filter-sheet" role="dialog" aria-modal="true" aria-labelledby="filter-title">
         <div className="sheet-handle" /><div className="filter-heading"><div><span className="eyebrow">MAKE IT JUST RIGHT</span><h2 id="filter-title">Filters</h2></div><button className="icon-soft" onClick={onClose} aria-label="Close filters"><X size={18} /></button></div>
         <h3>Category</h3><div className="filter-options filter-categories"><button className={category === "All recipes" ? "option-selected" : ""} onClick={() => setCategory("All recipes")}>All</button>{categories.map((item) => <button key={item} className={category === item ? "option-selected" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div>
-        <h3>Ready in</h3><div className="filter-options">{[["Any time", 0], ["Under 30 min", 30], ["Under 60 min", 60]].map(([label, value]) => <button key={label} className={maxTime === value ? "option-selected" : ""} onClick={() => setMaxTime(value)}>{label}</button>)}</div>
+        <h3>Total duration</h3><div className="filter-options">{[["Any time", 0], ["Under 30 min", 30], ["Under 60 min", 60], ["Under 90 min", 90]].map(([label, value]) => <button key={label} className={maxTime === value ? "option-selected" : ""} onClick={() => setMaxTime(value)}>{label}</button>)}</div>
+        <h3>Preparation time</h3><div className="filter-options">{[["Any prep time", 0], ["Under 15 min", 15], ["Under 30 min", 30], ["Under 60 min", 60]].map(([label, value]) => <button key={label} className={maxPrepTime === value ? "option-selected" : ""} onClick={() => setMaxPrepTime(value)}>{label}</button>)}</div>
+        <h3>Cooking time</h3><div className="filter-options">{[["Any cook time", 0], ["Under 15 min", 15], ["Under 30 min", 30], ["Under 60 min", 60]].map(([label, value]) => <button key={label} className={maxCookTime === value ? "option-selected" : ""} onClick={() => setMaxCookTime(value)}>{label}</button>)}</div>
+        <h3>Servings</h3><div className="filter-options">{[["Any servings", 0], ["2+ servings", 2], ["4+ servings", 4], ["6+ servings", 6]].map(([label, value]) => <button key={label} className={minServings === value ? "option-selected" : ""} onClick={() => setMinServings(value)}>{label}</button>)}</div>
         <h3>Sort by</h3><div className="filter-options"><button className={sort === "recent" ? "option-selected" : ""} onClick={() => setSort("recent")}>Recently added</button><button className={sort === "name" ? "option-selected" : ""} onClick={() => setSort("name")}>Name A–Z</button></div>
         <button className="apply-filters" onClick={onApply}>Show recipes <ChevronRight size={17} /></button>
       </section>
@@ -91,6 +94,9 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All recipes");
   const [maxTime, setMaxTime] = useState(0);
+  const [maxPrepTime, setMaxPrepTime] = useState(0);
+  const [maxCookTime, setMaxCookTime] = useState(0);
+  const [minServings, setMinServings] = useState(0);
   const [sort, setSort] = useState("recent");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -109,15 +115,26 @@ export default function App() {
 
   const loadRecipes = useCallback(async () => {
     setLoading(true);
+    const filters = {
+      maxPrep: maxPrepTime,
+      maxCook: maxCookTime,
+      minServings
+    };
     try {
       const [result, categoryList, all] = await Promise.all([
-        recipesApi.list(search, activeCategory, sort),
+        recipesApi.list(search, activeCategory, sort, filters),
         recipesApi.categories(),
         recipesApi.list("", "All recipes", "recent")
       ]);
       let apiResult = [];
       try {
-        const externalResult = await externalRecipesApi.search({ search });
+        const externalResult = await externalRecipesApi.search({
+          search,
+          category: activeCategory,
+          maxPrep: maxPrepTime || undefined,
+          maxCook: maxCookTime || undefined,
+          minServings: minServings || undefined
+        });
         apiResult = externalResult.recipes;
       } catch {
         // Local recipes remain usable when the external provider is unavailable.
@@ -134,7 +151,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [search, activeCategory, sort]);
+  }, [search, activeCategory, sort, maxPrepTime, maxCookTime, minServings]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 250);
@@ -179,7 +196,13 @@ export default function App() {
     setExternalLoading(true);
     setExternalError("");
     try {
-      const result = await externalRecipesApi.search({ search: query });
+      const result = await externalRecipesApi.search({
+        search: query,
+        category: activeCategory,
+        maxPrep: maxPrepTime || undefined,
+        maxCook: maxCookTime || undefined,
+        minServings: minServings || undefined
+      });
       setExternalRecipes(result.recipes);
     } catch (externalSearchError) {
       setExternalError(externalSearchError instanceof Error ? externalSearchError.message : "Couldn't search Recipe API.");
@@ -238,7 +261,7 @@ export default function App() {
   function renderRecipeResults(items) {
     if (loading) return <div className="inline-loading"><span className="loader" />Finding something delicious…</div>;
     if (!items.length) {
-      return <div className="no-results"><span className="no-results-icon"><Search size={20} /></span><h3>No recipes found just yet</h3><p>Try another search, choose a different category, or loosen your filters.</p><button className="text-action" onClick={() => { setSearchInput(""); setSearch(""); setActiveCategory("All recipes"); setMaxTime(0); }}>Clear search & filters</button></div>;
+      return <div className="no-results"><span className="no-results-icon"><Search size={20} /></span><h3>No recipes found just yet</h3><p>Try another search, choose a different category, or loosen your filters.</p>      <button className="text-action" onClick={() => { setSearchInput(""); setSearch(""); setActiveCategory("All recipes"); setMaxTime(0); setMaxPrepTime(0); setMaxCookTime(0); setMinServings(0); }}>Clear search & filters</button></div>;
     }
     return <div className="vertical-recipes">{items.map((recipe) => <RecipeCard key={recipe._id} recipe={recipe} onClick={() => setSelected(recipe)} />)}</div>;
   }
@@ -287,7 +310,7 @@ export default function App() {
     <BottomNav active={screen} onChange={setScreen} />
     <div className="home-indicator" />
     {showForm && <RecipeForm recipe={editing || undefined} onClose={() => { setShowForm(false); setEditing(null); }} onSave={saveRecipe} />}
-    {showFilters && <FilterSheet categories={categoryNames} category={activeCategory} setCategory={setActiveCategory} maxTime={maxTime} setMaxTime={setMaxTime} sort={sort} setSort={setSort} onClose={() => setShowFilters(false)} onApply={() => { setShowFilters(false); setScreen("recipes"); }} />}
+    {showFilters && <FilterSheet categories={categoryNames} category={activeCategory} setCategory={setActiveCategory} maxTime={maxTime} setMaxTime={setMaxTime} maxPrepTime={maxPrepTime} setMaxPrepTime={setMaxPrepTime} maxCookTime={maxCookTime} setMaxCookTime={setMaxCookTime} minServings={minServings} setMinServings={setMinServings} sort={sort} setSort={setSort} onClose={() => setShowFilters(false)} onApply={() => { setShowFilters(false); setScreen("recipes"); }} />}
     {selected && <RecipeDetails recipe={selected} onClose={() => setSelected(null)} canManage={!selected.external} onEdit={() => { setEditing(selected); setSelected(null); setShowForm(true); }} onDelete={() => void deleteRecipe(selected)} onAddShopping={addToShopping} />}
   </main>;
 }

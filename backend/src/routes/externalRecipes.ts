@@ -7,6 +7,10 @@ const recipeApiBaseUrl = process.env.RECIPE_API_URL ?? "https://recipeapi.io/api
 const queryInput = z.object({
   search: z.string().trim().max(100).optional(),
   ingredients: z.string().trim().max(300).optional(),
+  category: z.string().trim().max(40).optional(),
+  maxPrep: z.coerce.number().int().min(0).max(1440).optional(),
+  maxCook: z.coerce.number().int().min(0).max(1440).optional(),
+  minServings: z.coerce.number().int().min(1).max(100).optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1)
 });
 
@@ -55,6 +59,15 @@ router.get("/search", async (req, res, next) => {
     });
     if (parsed.data.search) query.set("search", parsed.data.search);
     if (parsed.data.ingredients) query.set("ingredients", parsed.data.ingredients);
+    if (parsed.data.maxPrep !== undefined) query.set("prep_time_max", String(parsed.data.maxPrep));
+    if (parsed.data.maxCook !== undefined) query.set("cook_time_max", String(parsed.data.maxCook));
+    if (parsed.data.minServings !== undefined) query.set("servings", String(parsed.data.minServings));
+    const mealTypeByCategory: Record<string, string> = {
+      Breakfast: "breakfast", Dessert: "dessert", Snack: "snack", Drinks: "drink"
+    };
+    if (parsed.data.category && mealTypeByCategory[parsed.data.category]) {
+      query.set("meal_type", mealTypeByCategory[parsed.data.category]);
+    }
 
     const response = await fetch(`${recipeApiBaseUrl}/recipes?${query.toString()}`, {
       headers: { Authorization: apiKey, Accept: "application/json" }

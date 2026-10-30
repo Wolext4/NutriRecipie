@@ -30,6 +30,11 @@ router.get("/", async (req, res, next) => {
     const query: Record<string, unknown> = {};
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
+    const minPrep = Number(req.query.minPrep);
+    const maxPrep = Number(req.query.maxPrep);
+    const minCook = Number(req.query.minCook);
+    const maxCook = Number(req.query.maxCook);
+    const minServings = Number(req.query.minServings);
 
     if (search) {
       const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -43,6 +48,11 @@ router.get("/", async (req, res, next) => {
       delete query.$or;
     }
     if (category && category !== "All recipes") query.category = category;
+    if (Number.isFinite(minPrep)) query.prepTime = { ...(query.prepTime as object ?? {}), $gte: minPrep };
+    if (Number.isFinite(maxPrep)) query.prepTime = { ...(query.prepTime as object ?? {}), $lte: maxPrep };
+    if (Number.isFinite(minCook)) query.cookTime = { ...(query.cookTime as object ?? {}), $gte: minCook };
+    if (Number.isFinite(maxCook)) query.cookTime = { ...(query.cookTime as object ?? {}), $lte: maxCook };
+    if (Number.isFinite(minServings)) query.servings = { $gte: minServings };
 
     const sort: { name?: "asc"; createdAt?: "desc" } =
       req.query.sort === "name" ? { name: "asc" } : { createdAt: "desc" };

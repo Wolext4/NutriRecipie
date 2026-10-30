@@ -70,8 +70,9 @@ router.get("/search", async (req, res, next) => {
       query.set("meal_type", mealTypeByCategory[parsed.data.category]);
     }
 
+    query.set("apikey", apiKey);
     const response = await fetch(`${recipeApiBaseUrl}/recipes?${query.toString()}`, {
-      headers: { Authorization: apiKey, Accept: "application/json" }
+      headers: { Accept: "application/json" }
     });
     if (!response.ok) {
       res.status(response.status === 401 ? 502 : 503).json({ message: "Recipe API request failed." });

@@ -5,6 +5,9 @@ import mongoose from "mongoose";
 import { Recipe } from "./models/Recipe";
 import recipeRoutes from "./routes/recipes";
 import externalRecipeRoutes from "./routes/externalRecipes";
+import authRoutes from "./routes/auth";
+import profileRoutes from "./routes/profile";
+import mealPlanRoutes from "./routes/mealPlans";
 
 dotenv.config();
 
@@ -38,6 +41,9 @@ app.get("/api/health", (_req, res) => {
 });
 app.use("/api/recipes", recipeRoutes);
 app.use("/api/external-recipes", externalRecipeRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/api/meal-plans", mealPlanRoutes);
 
 const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   if (error instanceof Error && error.message === "This website origin is not allowed to access the API.") {

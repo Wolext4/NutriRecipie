@@ -2,6 +2,8 @@ import { Router } from "express";
 import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { Recipe } from "../models/Recipe";
+import { optionalAuth, requireAuth } from "../middleware/auth";
+import { cacheDeleteByPrefix, cacheGet, cacheSet } from "../services/cache";
 
 const router = Router();
 
@@ -25,7 +27,7 @@ const recipeInput = z.object({
   instructions: z.array(z.string().trim().min(1)).min(1).max(100)
 });
 
-router.get("/", async (req, res, next) => {
+router.get("/", optionalAuth, async (req, res, next) => {
   try {
     const query: Record<string, unknown> = {};
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
@@ -56,7 +58,14 @@ router.get("/", async (req, res, next) => {
 
     const sort: { name?: "asc"; createdAt?: "desc" } =
       req.query.sort === "name" ? { name: "asc" } : { createdAt: "desc" };
+    query.$or = req.authUserId
+      ? [{ owner: req.authUserId }, { owner: null }]
+      : [{ owner: null }];
+    const cacheKey = `recipes:${JSON.stringify({ query, sort, user: req.authUserId ?? "guest" })}`;
+    const cached = await cacheGet<unknown[]>(cacheKey);
+    if (cached) { res.json(cached); return; }
     const recipes = await Recipe.find(query).sort(sort);
+    await cacheSet(cacheKey, recipes, 60);
     res.json(recipes);
   } catch (error) {
     next(error);
@@ -89,7 +98,7 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
-router.post("/", async (req, res, next) => {
+router.post("/", requireAuth, async (req, res, next) => {
   try {
     const parsed = recipeInput.safeParse(req.body);
     if (!parsed.success) {
@@ -97,15 +106,17 @@ router.post("/", async (req, res, next) => {
       return;
     }
     const recipe = await Recipe.create({
-      ...parsed.data
+      ...parsed.data,
+      owner: req.authUserId
     });
     res.status(201).json(recipe);
+    await cacheDeleteByPrefix("recipes:");
   } catch (error) {
     next(error);
   }
 });
 
-router.put("/:id", async (req, res, next) => {
+router.put("/:id", requireAuth, async (req, res, next) => {
   try {
     if (!isValidObjectId(req.params.id)) {
       res.status(400).json({ message: "Invalid recipe ID." });
@@ -117,7 +128,7 @@ router.put("/:id", async (req, res, next) => {
       return;
     }
     const recipe = await Recipe.findOneAndUpdate(
-      { _id: req.params.id },
+      { _id: req.params.id, owner: req.authUserId },
       parsed.data,
       {
       new: true,
@@ -129,23 +140,25 @@ router.put("/:id", async (req, res, next) => {
       return;
     }
     res.json(recipe);
+    await cacheDeleteByPrefix("recipes:");
   } catch (error) {
     next(error);
   }
 });
 
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requireAuth, async (req, res, next) => {
   try {
     if (!isValidObjectId(req.params.id)) {
       res.status(400).json({ message: "Invalid recipe ID." });
       return;
     }
-    const recipe = await Recipe.findByIdAndDelete(req.params.id);
+    const recipe = await Recipe.findOneAndDelete({ _id: req.params.id, owner: req.authUserId });
     if (!recipe) {
       res.status(404).json({ message: "Recipe not found." });
       return;
     }
     res.status(204).end();
+    await cacheDeleteByPrefix("recipes:");
   } catch (error) {
     next(error);
   }

@@ -1,4 +1,8 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const AUTH_TOKEN_KEY = "nutrirecipie-auth-token";
+
+export const getAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
+export const setAuthToken = (token) => token ? localStorage.setItem(AUTH_TOKEN_KEY, token) : localStorage.removeItem(AUTH_TOKEN_KEY);
 
 async function request(path, options = {}) {
   let response;
@@ -7,6 +11,7 @@ async function request(path, options = {}) {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        ...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {}),
         ...options.headers
       }
     });
@@ -54,4 +59,19 @@ export const externalRecipesApi = {
     });
     return request(`/external-recipes/search?${params.toString()}`);
   }
+};
+
+export const authApi = {
+  register(name, email, password) { return request("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }) }); },
+  login(email, password) { return request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }); },
+  me() { return request("/auth/me"); }
+};
+
+export const profileApi = {
+  update(profile) { return request("/profile", { method: "PUT", body: JSON.stringify(profile) }); }
+};
+
+export const mealPlansApi = {
+  get() { return request("/meal-plans"); },
+  generate() { return request("/meal-plans/generate", { method: "POST" }); }
 };

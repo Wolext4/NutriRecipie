@@ -174,6 +174,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .profile-category span:last-child { display: flex; align-items: center; gap: 4px; color: #28a745; font-size: 9px; }
 .profile-empty { padding: 16px; border-radius: 6px; background: #f7f8f5; color: #858f8d; text-align: center; font-size: 9px; }
 .profile-add { width: 100%; display: flex; justify-content: center; align-items: center; gap: 7px; margin-top: 17px; padding: 11px; border: 1px solid #e6eae4; border-radius: 6px; background: #fff; color: #64795f; font-size: 10px; }
+.meal-plan-list { display: grid; gap: 7px; }
+.meal-plan-day { display: flex; justify-content: space-between; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); }
+.meal-plan-day span { color: var(--muted); font-size: 9px; }
+.meal-plan-day strong { overflow: hidden; color: var(--ink); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.preference-form { display: grid; gap: 10px; }
+.preference-check { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; }
 
 .welcome-screen { display: flex; flex-direction: column; padding-bottom: 27px; }
 .welcome-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 23px 0; }
@@ -541,3 +547,5 @@ html[data-theme="dark"] .method-list { color: #c6d2c9; }
 html[data-theme="dark"] .bottom-nav button { color: #91a096; }
 html[data-theme="dark"] .bottom-nav .nav-selected { color: #72d78a; }
 html[data-theme="dark"] .theme-toggle { color: #bdecc7; border-color: #3d5945; background: #21382a; }
+html[data-theme="dark"] .auth-screen { background: #18221c; }
+html[data-theme="dark"] .auth-panel { background: #1d2721; border-color: var(--line); }

@@ -20,6 +20,10 @@ A responsive recipe manager built with React and JavaScript, a Node.js/Express A
 - Create, edit, and delete recipes without an account
 - Import recipes from the Recipe API
 - Save the shopping list in the current browser
+- Email/password accounts with owned recipes
+- Preference-aware 14-day meal planning with allergy exclusions
+- Optional Redis caching and Resend meal-plan notifications
+- Persistent light and dark themes
 
 ## Technology
 
@@ -45,6 +49,10 @@ backend/
   src/
     index.ts          Express server and MongoDB connection
     models/Recipe.ts  Mongoose recipe schema
+    models/User.ts    User accounts and food preferences
+    models/MealPlan.ts Generated meal plans
+    services/cache.ts Upstash Redis cache helpers
+    services/email.ts Resend notification helper
     routes/recipes.ts Recipe API routes and validation
 ```
 
@@ -70,6 +78,8 @@ Set `MONGODB_URI` in `backend/.env`. For a local MongoDB server, the example val
 ```dotenv
 MONGODB_URI=mongodb://127.0.0.1:27017/recipe_manager
 ```
+
+Set `JWT_SECRET` to a random secret with at least 32 characters. Upstash and Resend settings are optional locally; when absent, the API continues without cache or email delivery.
 
 Then start the API:
 
@@ -119,6 +129,16 @@ The backend API is mounted at `/api`.
 | `PUT` | `/api/recipes/:id` | Update a recipe |
 | `DELETE` | `/api/recipes/:id` | Delete a recipe |
 | `GET` | `/api/external-recipes/search` | Search the configured Recipe API |
+| `POST` | `/api/auth/register` | Create an account |
+| `POST` | `/api/auth/login` | Sign in |
+| `GET` | `/api/auth/me` | Get the signed-in user |
+| `PUT` | `/api/profile` | Save likes, dislikes, allergies, categories, and email preference |
+| `GET` | `/api/meal-plans` | Get the signed-in user's 14-day plan |
+| `POST` | `/api/meal-plans/generate` | Generate a new preference-aware 14-day plan |
+
+### Cache invalidation
+
+Recipe list responses are cached in Upstash Redis for 60 seconds. Cache keys include the query and user identity, so private recipes are never served from another user's cache. Recipe create, update, and delete operations invalidate all `recipes:` keys. If Redis is unavailable, the API logs the cache warning and falls back to MongoDB rather than failing requests.
 
 ## Deployment
 
@@ -139,6 +159,11 @@ Set these environment variables in the Render service settings:
 | --- | --- |
 | `MONGODB_URI` | MongoDB Atlas connection string, with `recipe_manager` as the database name |
 | `CLIENT_ORIGIN` | Exact Vercel frontend origin, for example `https://nutri-recipie.vercel.app` |
+| `JWT_SECRET` | Strong random secret with at least 32 characters |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST endpoint |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token |
+| `RESEND_API_KEY` | Resend API key |
+| `EMAIL_FROM` | Verified sender, for example `NutriRecipie <noreply@example.com>` |
 
 Render provides `PORT` automatically. Do not commit database credentials or add them to this README. In MongoDB Atlas Network Access, allow the Render service's outbound IP ranges. Your personal development IP is separate and is needed only for connections from your own computer.
 

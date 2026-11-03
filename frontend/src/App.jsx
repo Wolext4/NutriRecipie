@@ -238,8 +238,7 @@ export default function App() {
 
   function startCreateRecipe() {
     if (!authUser) {
-      setAuthMode("login");
-      setScreen("profile");
+      setError("Recipe creation is temporarily unavailable while accounts are paused.");
       return;
     }
     setEditing(null);
@@ -372,6 +371,9 @@ export default function App() {
 
   function renderProfile() {
     const counts = categoryNames.map((category) => ({ category, count: allRecipes.filter((recipe) => recipe.category === category).length })).filter((item) => item.count > 0);
+    if (!authUser) {
+      return <><header className="profile-cover"><div className="profile-avatar-large">G</div><span className="eyebrow">YOUR NUTRIRECIPIE KITCHEN</span><h1>Guest kitchen</h1><p>Sign-in and account features are temporarily paused.</p></header><div className="profile-stats"><div><strong>{allRecipes.length}</strong><span>Recipes</span></div><div><strong>{categories.length}</strong><span>Categories</span></div><div><strong>{shoppingList.length}</strong><span>On your list</span></div></div><section className="profile-section"><div className="section-heading"><div><span className="eyebrow">ACCOUNT FEATURES</span><h2>Coming back soon</h2></div></div><p className="section-empty">Recipe saving, personalized meal plans, and email notifications will be available when accounts are enabled again.</p></section><button className="profile-add theme-toggle" onClick={toggleTheme}>{darkMode ? <Sun size={17} /> : <Moon size={17} />} {darkMode ? "Use light mode" : "Use dark mode"}</button></>;
+    }
     async function generatePlan() {
       setPlanLoading(true);
       try { setMealPlan(await mealPlansApi.generate()); }
@@ -382,8 +384,9 @@ export default function App() {
     return <><header className="profile-cover"><div className="profile-avatar-large">{authUser.name[0].toUpperCase()}</div><span className="eyebrow">YOUR NUTRIRECIPIE KITCHEN</span><h1>{authUser.name}</h1><p>{authUser.email}</p></header><div className="profile-stats"><div><strong>{allRecipes.length}</strong><span>Recipes</span></div><div><strong>{categories.length}</strong><span>Categories</span></div><div><strong>{shoppingList.length}</strong><span>On your list</span></div></div><section className="profile-section"><div className="section-heading"><div><span className="eyebrow">MEAL PLANNER</span><h2>Your 14-day plan</h2></div><button className="show-all" onClick={() => void generatePlan()}>{planLoading ? "Planning…" : "Regenerate"}</button></div>{planDays.length ? <div className="meal-plan-list">{planDays.map((day) => <div className="meal-plan-day" key={day.date}><span>{day.date}</span><strong>{day.recipe?.name ?? "Recipe"}</strong></div>)}</div> : <p className="section-empty">Generate a plan based on your likes, dislikes, allergies, and preferred categories.</p>}<button className="profile-add" onClick={() => void generatePlan()} disabled={planLoading}>Generate meal plan</button></section><section className="profile-section preference-form"><div className="section-heading"><div><span className="eyebrow">PERSONALIZE YOUR PLAN</span><h2>Food preferences</h2></div></div>{["likedIngredients:Likes (comma separated)", "dislikedIngredients:Dislikes (comma separated)", "allergies:Allergies (comma separated)", "preferredCategories:Preferred categories (comma separated)"].map((field) => { const [key, label] = field.split(":"); return <label className="field" key={key}>{label}<input value={preferenceDraft[key]} onChange={(event) => setPreferenceDraft((current) => ({ ...current, [key]: event.target.value }))} /></label>; })}<label className="preference-check"><input type="checkbox" checked={preferenceDraft.mealPlanEmail} onChange={(event) => setPreferenceDraft((current) => ({ ...current, mealPlanEmail: event.target.checked }))} /> Email me new meal plans</label><button className="profile-add" onClick={() => void savePreferences()}>Save preferences</button></section><section className="profile-section"><div className="section-heading"><div><span className="eyebrow">YOUR COLLECTION</span><h2>Recipe categories</h2></div></div>{counts.length ? counts.map((item) => <button className="profile-category" key={item.category} onClick={() => { setActiveCategory(item.category); setScreen("menu"); }}><span>{item.category}</span><span>{item.count} recipes <ChevronRight size={15} /></span></button>) : <div className="profile-empty">Your categories will show up here once you add recipes.</div>}</section><button className="profile-add" onClick={startCreateRecipe}><Plus size={17} /> Add a recipe</button><button className="profile-add theme-toggle" onClick={toggleTheme}>{darkMode ? <Sun size={17} /> : <Moon size={17} />} {darkMode ? "Use light mode" : "Use dark mode"}</button></>;
   }
 
-  if (!authReady) return <main className="auth-loading"><span className="loader" />Checking your account…</main>;
-  if (!authUser) return <AuthScreen mode={authMode} onModeChange={setAuthMode} onSubmit={submitAuth} />;
+  if (!authReady) return <main className="auth-loading"><span className="loader" />Loading your kitchen…</main>;
+  // Authentication is temporarily paused. Keep AuthScreen and the auth flow above for later re-enabling.
+  // if (!authUser) return <AuthScreen mode={authMode} onModeChange={setAuthMode} onSubmit={submitAuth} />;
 
   return <main className="app-frame">
     <div className="screen-content" key={screen}>
